@@ -4,7 +4,7 @@ set -e
 
 declare -A SCRIPTS=(
     ["deploy-test-environment"]="script/DeployTestEnvironment.s.sol:DeployTestEnvironment"
-    ["deploy-test-mnav-price-feed"]="script/DeployTestMNAVPriceFeed.s.sol:DeployTestMNAVPriceFeed"
+    ["deploy-test-pyusd-price-feed"]="script/DeployTestPYUSDPriceFeed.s.sol:DeployTestPYUSDPriceFeed"
     ["deploy-swap-adapter"]="script/DeploySwapAdapter.s.sol:DeploySwapAdapter"
     ["deploy-price-oracle"]="script/DeployPriceOracle.s.sol:DeployPriceOracle"
     ["deploy-oadapter"]="script/DeployOAdapter.s.sol:DeployOAdapter"
@@ -39,9 +39,9 @@ usage() {
     echo "Commands:"
     echo "  deploy-test-environment <wrapped M token> <swap router> <mnav price feed> <loan router> <tokens> <price feeds>"
     echo ""
-    echo "  deploy-test-mnav-price-feed"
-    echo "  deploy-swap-adapter <wrapped M token> <swap router> <tokens>"
-    echo "  deploy-price-oracle <M NAV price feed> <tokens> <price feeds>"
+    echo "  deploy-test-pyusd-price-feed"
+    echo "  deploy-swap-adapter <base token> <swap router> <tokens>"
+    echo "  deploy-price-oracle <base token price feed> <tokens> <price feeds> <admin>"
     echo "  deploy-oadapter <token> <lz endpoint>"
     echo "  deploy-otoken <name> <symbol>"
     echo ""

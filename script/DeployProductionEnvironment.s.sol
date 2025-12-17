@@ -50,15 +50,11 @@ contract DeployProductionEnvironment is Deployer {
         IAccessControl(address(swapAdapter)).revokeRole(0x00, msg.sender);
 
         // Deploy ChainlinkPriceOracle
-        ChainlinkPriceOracle priceOracle = new ChainlinkPriceOracle(mNavPriceFeed, tokens, priceFeeds);
+        ChainlinkPriceOracle priceOracle = new ChainlinkPriceOracle(mNavPriceFeed, tokens, priceFeeds, multisig);
         console.log("ChainlinkPriceOracle", address(priceOracle));
 
-        // Transfer price oracle admin
-        IAccessControl(address(priceOracle)).grantRole(0x00, multisig);
-        IAccessControl(address(priceOracle)).revokeRole(0x00, msg.sender);
-
         // Deploy USDai implemetation
-        USDai USDaiImpl = new USDai(address(swapAdapter));
+        USDai USDaiImpl = new USDai(address(swapAdapter), _deployment.baseYieldEscrow, _deployment.stakedUSDai);
         console.log("USDai implementation", address(USDaiImpl));
 
         // Deploy StakedUSDai

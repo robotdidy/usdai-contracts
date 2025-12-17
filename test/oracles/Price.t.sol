@@ -8,59 +8,61 @@ import {IPriceOracle} from "../../src/interfaces/IPriceOracle.sol";
 
 contract ChainlinkPriceOracleTest is BaseTest {
     // Mainnet addresses
-    address constant WETH_ETHEREUM = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-    address constant WETH_ETHEREUM_PRICE_FEED = 0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419; // WETH_ETHEREUM/USD
-    address constant USDC_ETHEREUM = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-    address constant USDC_ETHEREUM_PRICE_FEED = 0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6; // USDC_ETHEREUM/USD
-    address constant DAI_ETHEREUM = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
-    address constant DAI_ETHEREUM_PRICE_FEED = 0xAed0c38402a5d19df6E4c03F4E2DceD6e29c1ee9; // DAI_ETHEREUM/USD
+    address constant WETH_ARBITRUM = 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1;
+    address constant WETH_ARBITRUM_PRICE_FEED = 0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612; // WETH_ARBITRUM/USD
+    address constant USDC_ARBITRUM = 0xaf88d065e77c8cC2239327C5EDb3A432268e5831;
+    address constant USDC_ARBITRUM_PRICE_FEED = 0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3; // USDC_ARBITRUM/USD
+    address constant DAI_ARBITRUM = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
+    address constant DAI_ARBITRUM_PRICE_FEED = 0xc5C8E77B397E531B8EC06BFb0048328B30E9eCfB; // DAI_ARBITRUM/USD
 
     ChainlinkPriceOracle public oracle;
 
     function setUp() public override {
-        vm.createSelectFork(vm.envString("ETHEREUM_RPC_URL"));
-        vm.rollFork(22244554);
+        vm.createSelectFork(vm.envString("ARBITRUM_RPC_URL"));
+        vm.rollFork(424398311);
 
         // Create arrays for constructor
         address[] memory tokens = new address[](3);
-        tokens[0] = USDC_ETHEREUM;
-        tokens[1] = DAI_ETHEREUM;
-        tokens[2] = WETH_ETHEREUM;
+        tokens[0] = USDC_ARBITRUM;
+        tokens[1] = DAI_ARBITRUM;
+        tokens[2] = WETH_ARBITRUM;
 
         address[] memory priceFeeds = new address[](3);
-        priceFeeds[0] = USDC_ETHEREUM_PRICE_FEED;
-        priceFeeds[1] = DAI_ETHEREUM_PRICE_FEED;
-        priceFeeds[2] = WETH_ETHEREUM_PRICE_FEED;
+        priceFeeds[0] = USDC_ARBITRUM_PRICE_FEED;
+        priceFeeds[1] = DAI_ARBITRUM_PRICE_FEED;
+        priceFeeds[2] = WETH_ARBITRUM_PRICE_FEED;
 
         // Deploy oracle
-        oracle = new ChainlinkPriceOracle(M_NAV_PRICE_FEED, tokens, priceFeeds);
+        oracle = new ChainlinkPriceOracle(PYUSD_PRICE_FEED, tokens, priceFeeds, users.admin);
     }
 
-    function test__Price_WETH_ETHEREUM() public view {
-        // Get WETH_ETHEREUM price in terms of USDai
-        uint256 price = oracle.price(WETH_ETHEREUM);
+    function test__Price_WETH_ARBITRUM() public view {
+        // Get WETH_ARBITRUM price in terms of USDai
+        uint256 price = oracle.price(WETH_ARBITRUM);
 
-        (, int256 answer,,,) = AggregatorV3Interface(WETH_ETHEREUM_PRICE_FEED).latestRoundData();
+        (, int256 answer,,,) = AggregatorV3Interface(WETH_ARBITRUM_PRICE_FEED).latestRoundData();
 
-        assertEq(price, uint256(answer) * 10 ** 10);
+        assertApproxEqAbs(price, uint256(answer) * 10 ** 10, 6e18, "Price mismatch");
     }
 
-    function test__Price_USDC_ETHEREUM() public view {
-        // Get USDC_ETHEREUM price in terms of USDai
-        uint256 price = oracle.price(USDC_ETHEREUM);
+    function test__Price_USDC_ARBITRUM() public view {
+        // Get USDC_ARBITRUM price in terms of USDai
+        uint256 price = oracle.price(USDC_ARBITRUM);
 
-        (, int256 answer,,,) = AggregatorV3Interface(USDC_ETHEREUM_PRICE_FEED).latestRoundData();
+        (, int256 answer,,,) = AggregatorV3Interface(USDC_ARBITRUM_PRICE_FEED).latestRoundData();
 
-        assertEq(price, uint256(answer) * 10 ** 10);
+        // PYUSD is trading at a higher price than USDC
+        assertApproxEqAbs(price, uint256(answer) * 10 ** 10, 8e13, "Price mismatch");
     }
 
-    function test__Price_DAI_ETHEREUM() public view {
-        // Get DAI_ETHEREUM price in terms of USDai
-        uint256 price = oracle.price(DAI_ETHEREUM);
+    function test__Price_DAI_ARBITRUM() public view {
+        // Get DAI_ARBITRUM price in terms of USDai
+        uint256 price = oracle.price(DAI_ARBITRUM);
 
-        (, int256 answer,,,) = AggregatorV3Interface(DAI_ETHEREUM_PRICE_FEED).latestRoundData();
+        (, int256 answer,,,) = AggregatorV3Interface(DAI_ARBITRUM_PRICE_FEED).latestRoundData();
 
-        assertEq(price, uint256(answer) * 10 ** 10);
+        // PYUSD is trading at a higher price than DAI
+        assertApproxEqAbs(price, uint256(answer) * 10 ** 10, 8e13, "Price mismatch");
     }
 
     function test__Price_RevertWhen_UnsupportedToken() public {
@@ -74,13 +76,14 @@ contract ChainlinkPriceOracleTest is BaseTest {
 
     function test__RemoveTokenPriceFeeds() public {
         address[] memory tokens = new address[](1);
-        tokens[0] = USDC_ETHEREUM;
+        tokens[0] = USDC_ARBITRUM;
 
-        // Remove USDC_ETHEREUM price feed
+        // Remove USDC_ARBITRUM price feed
+        vm.prank(users.admin);
         oracle.removeTokenPriceFeeds(tokens);
 
         // Should revert when trying to get price for unsupported token
-        vm.expectRevert(abi.encodeWithSelector(IPriceOracle.UnsupportedToken.selector, USDC_ETHEREUM));
-        oracle.price(USDC_ETHEREUM);
+        vm.expectRevert(abi.encodeWithSelector(IPriceOracle.UnsupportedToken.selector, USDC_ARBITRUM));
+        oracle.price(USDC_ARBITRUM);
     }
 }

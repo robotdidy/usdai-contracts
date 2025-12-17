@@ -61,6 +61,21 @@ abstract contract BasePositionManager is
     function _assets(
         ValuationType
     ) internal view virtual override returns (uint256) {
+        /* Get base yield accrued */
+        uint256 baseYieldAccrued = _usdai.baseYieldAccrued();
+
+        /* Calculate admin fee */
+        uint256 adminFee = (baseYieldAccrued * _baseYieldAdminFeeRate) / BASIS_POINTS_SCALE;
+
+        /* Return total assets in terms of USDai */
+        return baseYieldAccrued - adminFee + _legacyAssets();
+    }
+
+    /**
+     * @notice Legacy assets
+     * @return Legacy assets
+     */
+    function _legacyAssets() internal view returns (uint256) {
         /* Scaled balance of wrapped M token */
         uint256 scaledBalance = _scale(_wrappedMToken.balanceOf(address(this)));
 
@@ -118,8 +133,37 @@ abstract contract BasePositionManager is
     /**
      * @inheritdoc IBasePositionManager
      */
+    function harvestBaseYield() external onlyRole(STRATEGY_ADMIN_ROLE) nonReentrant returns (uint256, uint256) {
+        /* Harvest base yield */
+        uint256 usdaiAmount = _usdai.harvest();
+
+        /* Calculate admin fee */
+        uint256 adminFee = (usdaiAmount * _baseYieldAdminFeeRate) / BASIS_POINTS_SCALE;
+
+        /* Transfer admin fee to admin fee recipient */
+        if (adminFee > 0) {
+            _usdai.transfer(_adminFeeRecipient, adminFee);
+
+            /* Calculate amount less admin fee */
+            usdaiAmount -= adminFee;
+        }
+
+        /* Update deposits balance */
+        _getDepositsStorage().balance += usdaiAmount;
+
+        /* Emit BaseYieldDeposited */
+        emit BaseYieldDeposited(usdaiAmount, adminFee);
+
+        return (usdaiAmount, adminFee);
+    }
+
+    /**
+     * @inheritdoc IBasePositionManager
+     */
     function depositBaseYield(
-        uint256 usdaiAmount
+        uint256 usdaiAmount,
+        uint256 usdaiAmountMinimum,
+        bytes calldata swapData
     ) external onlyRole(STRATEGY_ADMIN_ROLE) nonReentrant returns (uint256, uint256) {
         /* Scale down the USDai amount */
         uint256 wrappedMAmount = _unscale(usdaiAmount);
@@ -133,7 +177,8 @@ abstract contract BasePositionManager is
         _wrappedMToken.approve(address(_usdai), wrappedMAmount);
 
         /* Deposit wrapped M token for USDai */
-        uint256 usdaiAmount_ = _usdai.deposit(address(_wrappedMToken), wrappedMAmount, 0, address(this));
+        uint256 usdaiAmount_ =
+            _usdai.deposit(address(_wrappedMToken), wrappedMAmount, usdaiAmountMinimum, address(this), swapData);
 
         /* Calculate admin fee */
         uint256 adminFee_ = (usdaiAmount_ * _baseYieldAdminFeeRate) / BASIS_POINTS_SCALE;

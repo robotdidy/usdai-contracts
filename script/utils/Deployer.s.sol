@@ -27,6 +27,7 @@ contract Deployer is BaseScript {
         address stakedUSDai;
         address swapAdapter;
         address priceOracle;
+        address baseYieldEscrow;
         address oAdapterUSDai;
         address oAdapterStakedUSDai;
         address oTokenUSDai;

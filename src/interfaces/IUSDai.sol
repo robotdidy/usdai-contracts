@@ -27,9 +27,27 @@ interface IUSDai is IERC20 {
      */
     error SupplyCapExceeded();
 
+    /**
+     * @notice Invalid decimals
+     */
+    error InvalidDecimals();
+
+    /**
+     * @notice Invalid parameters
+     */
+    error InvalidParameters();
+
     /*------------------------------------------------------------------------*/
     /* Structures */
     /*------------------------------------------------------------------------*/
+
+    /**
+     * @notice Rate tier
+     */
+    struct RateTier {
+        uint256 rate;
+        uint256 threshold;
+    }
 
     /**
      * @custom:storage-location erc7201:USDai.supply
@@ -37,6 +55,15 @@ interface IUSDai is IERC20 {
     struct Supply {
         uint256 bridged;
         uint256 cap;
+    }
+
+    /**
+     * @custom:storage-location erc7201:USDai.baseYieldAccrual
+     */
+    struct BaseYieldAccrual {
+        RateTier[] rateTiers;
+        uint256 accrued;
+        uint64 timestamp;
     }
 
     /*------------------------------------------------------------------------*/
@@ -83,10 +110,29 @@ interface IUSDai is IERC20 {
     );
 
     /**
+     * @notice Harvested event
+     * @param usdaiAmount USDai amount
+     */
+    event Harvested(uint256 usdaiAmount);
+
+    /**
      * @notice Supply cap set
      * @param supplyCap Supply cap
      */
     event SupplyCapSet(uint256 supplyCap);
+
+    /**
+     * @notice Base yield rate tiers set
+     * @param rateTiers Rate tiers
+     */
+    event BaseYieldRateTiersSet(RateTier[] rateTiers);
+
+    /**
+     * @notice Base token converted event
+     * @param converter Converter
+     * @param amount Amount
+     */
+    event BaseTokenConverted(address indexed converter, uint256 amount);
 
     /*------------------------------------------------------------------------*/
     /* Getters */
@@ -115,6 +161,12 @@ interface IUSDai is IERC20 {
      * @return Supply cap
      */
     function supplyCap() external view returns (uint256);
+
+    /**
+     * @notice Get base yield accrued
+     * @return Base yield accrued
+     */
+    function baseYieldAccrued() external view returns (uint256);
 
     /*------------------------------------------------------------------------*/
     /* Public API */
@@ -185,6 +237,17 @@ interface IUSDai is IERC20 {
     ) external returns (uint256);
 
     /*------------------------------------------------------------------------*/
+    /* Base Yield Recipient API */
+    /*------------------------------------------------------------------------*/
+
+    /**
+     * @notice Harvest base yield
+     * @return USDai amount
+     *
+     */
+    function harvest() external returns (uint256);
+
+    /*------------------------------------------------------------------------*/
     /* Permissioned API */
     /*------------------------------------------------------------------------*/
 
@@ -194,5 +257,13 @@ interface IUSDai is IERC20 {
      */
     function setSupplyCap(
         uint256 cap
+    ) external;
+
+    /**
+     * @notice Set rate tiers
+     * @param rateTiers Rate tiers
+     */
+    function setRateTiers(
+        RateTier[] memory rateTiers
     ) external;
 }

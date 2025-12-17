@@ -133,6 +133,11 @@ contract StakedUSDaiRedeemTest is BaseTest {
         // Simulate yield deposit
         simulateYieldDeposit(1_000_000 ether);
 
+        uint256 redemptionSharePrice3 = stakedUsdai.redemptionSharePrice();
+
+        (uint256 index, uint256 head, uint256 tail, uint256 pending, uint256 balance) =
+            stakedUsdai.redemptionQueueInfo();
+
         // Service redemption as manager
         serviceRedemptionAndWarp(requestedShares, true);
 

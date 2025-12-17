@@ -18,7 +18,7 @@ contract SwapAdapterSetWhitelistedTokensTest is BaseTest {
         address[] memory updatedWhitelistedTokens = uniswapV3SwapAdapter.whitelistedTokens();
 
         // Assert the whitelisted tokens were updated correctly (including WETH & USDT)
-        assertEq(updatedWhitelistedTokens.length, 4);
+        assertEq(updatedWhitelistedTokens.length, 5);
         bool found;
         for (uint256 i; i < updatedWhitelistedTokens.length; i++) {
             if (updatedWhitelistedTokens[i] == 0x1234567890123456789012345678901234567890) {
@@ -39,7 +39,7 @@ contract SwapAdapterSetWhitelistedTokensTest is BaseTest {
         uniswapV3SwapAdapter.setWhitelistedTokens(whitelistedTokens);
 
         // Assert the whitelisted tokens were added correctly
-        assertEq(uniswapV3SwapAdapter.whitelistedTokens().length, 4);
+        assertEq(uniswapV3SwapAdapter.whitelistedTokens().length, 5);
 
         // Remove the whitelisted tokens as the deployer
         vm.prank(users.deployer);
@@ -49,6 +49,6 @@ contract SwapAdapterSetWhitelistedTokensTest is BaseTest {
         address[] memory updatedWhitelistedTokens = uniswapV3SwapAdapter.whitelistedTokens();
 
         // Assert the whitelisted tokens were removed correctly
-        assertEq(updatedWhitelistedTokens.length, 2);
+        assertEq(updatedWhitelistedTokens.length, 3);
     }
 }

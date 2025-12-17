@@ -14,6 +14,7 @@ import {USDai} from "src/USDai.sol";
 import {StakedUSDai} from "src/StakedUSDai.sol";
 import {USDaiQueuedDepositor} from "src/queuedDepositor/USDaiQueuedDepositor.sol";
 import {ReceiptToken} from "src/queuedDepositor/ReceiptToken.sol";
+import {BaseYieldEscrow} from "src/BaseYieldEscrow.sol";
 
 import {IUSDaiQueuedDepositor} from "src/interfaces/IUSDaiQueuedDepositor.sol";
 import {OUSDaiUtility} from "src/omnichain/OUSDaiUtility.sol";
@@ -24,6 +25,7 @@ contract USDaiServiceQueuedDepositWithKyberTest is BaseTest {
     USDaiQueuedDepositor internal queuedDepositor = USDaiQueuedDepositor(0x81cc0DEE5e599784CBB4862c605c7003B0aC5A53);
     address internal oUsdaiUtility = 0x24a92E28a8C5D8812DcfAf44bCb20CC0BaBd1392;
     address internal endpoint = 0x1a44076050125825900e736c501f859c50fE728c;
+    address internal swapAdapter = 0x5F8deFa807F48e5784b98aEf50ADfC52029f3cf9;
 
     address internal kyberTarget = 0x6131B5fae19EA4f9D964eAc0408E4408b66337b5;
     /* KyberSwap execution data */
@@ -49,6 +51,10 @@ contract USDaiServiceQueuedDepositWithKyberTest is BaseTest {
         address proxyAdmin1 = address(uint160(uint256(vm.load(address(queuedDepositor), ERC1967Utils.ADMIN_SLOT))));
 
         vm.startPrank(0x783B08aA21DE056717173f72E04Be0E91328A07b);
+
+        USDai usdaiImpl =
+            new USDai(swapAdapter, address(new BaseYieldEscrow(address(usdai), WRAPPED_M_TOKEN)), address(stakedUsdai));
+        vm.etch(address(usdai), address(usdaiImpl).code);
 
         // Deploy USDai implemetation
         USDaiQueuedDepositor queuedDepositorImpl = new USDaiQueuedDepositor(

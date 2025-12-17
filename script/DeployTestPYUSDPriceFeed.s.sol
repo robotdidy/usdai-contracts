@@ -7,13 +7,13 @@ import {AggregatorV3Interface} from "src/interfaces/external/IAggregatorV3Interf
 
 import {Deployer} from "./utils/Deployer.s.sol";
 
-contract TestMNAVPriceFeed is AggregatorV3Interface {
+contract TestPYUSDPriceFeed is AggregatorV3Interface {
     function decimals() external pure returns (uint8) {
-        return 8;
+        return 18;
     }
 
     function description() external pure returns (string memory) {
-        return "Test M NAV";
+        return "Test PYUSD";
     }
 
     function version() external pure returns (uint256) {
@@ -31,20 +31,20 @@ contract TestMNAVPriceFeed is AggregatorV3Interface {
         pure
         returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)
     {
-        roundId = 18446744073709551766;
-        answer = 103815096;
-        startedAt = 1744372905;
-        updatedAt = 1744372919;
-        answeredInRound = 18446744073709551766;
+        roundId = 36893488147419103788;
+        answer = 99997961 * 1e10;
+        startedAt = 1765836014;
+        updatedAt = 1765836047;
+        answeredInRound = 36893488147419103788;
     }
 }
 
-contract DeployTestMNAVPriceFeed is Deployer {
+contract DeployTestPYUSDPriceFeed is Deployer {
     function run() public broadcast useDeployment returns (address) {
-        // Deploy TestMNAVPriceFeed
-        TestMNAVPriceFeed priceFeed = new TestMNAVPriceFeed();
-        console.log("TestMNAVPriceFeed", address(priceFeed));
+        // Deploy TestPYUSDPriceFeed
+        TestPYUSDPriceFeed pyusdPriceFeed = new TestPYUSDPriceFeed();
+        console.log("TestPYUSDPriceFeed", address(pyusdPriceFeed));
 
-        return (address(priceFeed));
+        return (address(pyusdPriceFeed));
     }
 }

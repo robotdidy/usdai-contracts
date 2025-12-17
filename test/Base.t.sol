@@ -1,30 +1,32 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.29;
 
-import {Vm} from "forge-std/Vm.sol";
-
 import {Test} from "forge-std/Test.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
+import {ERC1967Utils} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {ITransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 import {TestERC721} from "./tokens/TestERC721.sol";
 import {TestERC20} from "./tokens/TestERC20.sol";
 
-import {MetastreetPoolHelpers} from "./helpers/MetastreetPoolHelpers.sol";
 import {UniswapPoolHelpers} from "./helpers/UniswapPoolHelpers.sol";
 
-import {MockLoanRouter} from "./mocks/MockLoanRouter.sol";
+import {LoanRouter} from "@usdai-loan-router-contracts/LoanRouter.sol";
+import {DepositTimelock} from "@usdai-loan-router-contracts/DepositTimelock.sol";
+import {BundleCollateralWrapper} from "@usdai-loan-router-contracts/collateralWrappers/BundleCollateralWrapper.sol";
 
 import {USDai} from "src/USDai.sol";
 import {StakedUSDai} from "src/StakedUSDai.sol";
+import {BaseYieldEscrow} from "src/BaseYieldEscrow.sol";
 import {ChainlinkPriceOracle} from "src/oracles/ChainlinkPriceOracle.sol";
 import {UniswapV3SwapAdapter} from "src/swapAdapters/UniswapV3SwapAdapter.sol";
-import {IWrappedMToken} from "src/interfaces/external/IWrappedMToken.sol";
 import {IUSDai} from "src/interfaces/IUSDai.sol";
-import {IPool} from "src/interfaces/external/IPool.sol";
 
-import {TestMNAVPriceFeed} from "../script/DeployTestMNAVPriceFeed.s.sol";
+import {TestPYUSDPriceFeed} from "../script/DeployTestPYUSDPriceFeed.s.sol";
 
 /**
  * @title Base test setup
@@ -35,39 +37,41 @@ import {TestMNAVPriceFeed} from "../script/DeployTestMNAVPriceFeed.s.sol";
  * @dev Sets up users and token contracts
  */
 abstract contract BaseTest is Test {
-    /* M portal */
-    address internal constant M_PORTAL = 0xD925C84b55E4e44a53749fF5F2a5A13F63D128fd;
-
-    /* M */
-    address internal constant M_TOKEN = 0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b;
-
     /* Wrapped M */
-    IWrappedMToken internal constant WRAPPED_M_TOKEN = IWrappedMToken(0x437cc33344a0B27A429f795ff6B469C72698B291);
+    address internal constant WRAPPED_M_TOKEN = 0x437cc33344a0B27A429f795ff6B469C72698B291;
 
-    /* M registrar */
-    address internal constant M_REGISTRAR = 0x119FbeeDD4F4f4298Fb59B720d5654442b81ae2c;
+    /* PYUSD OFT adapter */
+    address internal constant PYUSD_OFT_ADAPTER = 0xFaB5891ED867a1195303251912013b92c4fc3a1D;
 
-    /* Earners list role */
-    bytes32 internal constant EARNERS_LIST = "earners";
+    /* PYUSD */
+    IERC20 internal constant PYUSD = IERC20(0x46850aD61C2B7d64d08c9C754F45254596696984);
 
-    bytes32 internal constant CLAIM_OVERRIDE_RECIPIENT_PREFIX = "wm_claim_override_recipient";
-
-    address internal constant M_NAV_PRICE_FEED = 0xC28198Df9aee1c4990994B35ff51eFA4C769e534;
-
-    /* MetaStreet Pool durations, rates, tick */
-    uint64[] internal durations = [30 days, 14 days, 7 days];
-    uint64[] internal rates = [
-        MetastreetPoolHelpers.normalizeRate(0.1 * 1e18),
-        MetastreetPoolHelpers.normalizeRate(0.3 * 1e18),
-        MetastreetPoolHelpers.normalizeRate(0.5 * 1e18)
-    ];
-    uint128 internal tick = MetastreetPoolHelpers.encodeTick(1_000_000 ether, 0, 0, 0);
+    /* PYUSD price feed on Ethereum */
+    address internal constant PYUSD_PRICE_FEED = 0x3d50d699A812A0f66F36876DF47B2aE68e781736;
 
     /* Fixed point scale */
     uint256 internal constant FIXED_POINT_SCALE = 1e18;
 
+    /* Basis points scale */
+    uint256 internal constant BASIS_POINTS_SCALE = 10_000;
+
     /* Locked shares */
     uint128 internal constant LOCKED_SHARES = 1e6;
+
+    /* Admin fee rate for loan router (10%) */
+    uint256 internal constant LOAN_ROUTER_ADMIN_FEE_RATE = 1000; // 10% in basis points
+
+    /* APR 4.5% to daily interest rate = 4.5% * 1e18 / (365 * 86400) = 1426940639 (scaled by 1e18)  */
+    uint256 internal constant BASE_YIELD_RATE_1 = 1426940639;
+
+    /* APR 3.5% to daily interest rate = 3.5% * 1e18 / (365 * 86400) = 1109842719 (scaled by 1e18)  */
+    uint256 internal constant BASE_YIELD_RATE_2 = 1109842719;
+
+    /* Base yield cutoff = 1,000,000,000 USD */
+    uint256 internal constant BASE_YIELD_CUTOFF_1 = 1_000_000_000 ether;
+
+    /* Base yield cutoff = type(uint256).max */
+    uint256 internal constant BASE_YIELD_CUTOFF_2 = type(uint256).max;
 
     /* WETH */
     address internal constant WETH = 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1;
@@ -75,11 +79,20 @@ abstract contract BaseTest is Test {
     /* USDT */
     address internal constant USDT = 0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9;
 
+    /* USDC */
+    address internal constant USDC = 0xaf88d065e77c8cC2239327C5EDb3A432268e5831;
+
     /* WETH price feed */
     address internal constant WETH_PRICE_FEED = 0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612;
 
     /* USDT price feed */
     address internal constant USDT_PRICE_FEED = 0x3f3f5dF88dC9F13eac63DF89EC16ef6e7E25DdE7;
+
+    /* USDC price feed */
+    address internal constant USDC_PRICE_FEED = 0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3;
+
+    /* English auction liquidator */
+    address internal constant ENGLISH_AUCTION_LIQUIDATOR = 0xceb5856C525bbb654EEA75A8852A0F51073C4a58;
 
     /**
      * @notice User accounts
@@ -90,6 +103,8 @@ abstract contract BaseTest is Test {
         address payable normalUser2;
         address payable admin;
         address payable manager;
+        address payable feeRecipient;
+        address payable borrower;
     }
 
     Users internal users;
@@ -97,72 +112,67 @@ abstract contract BaseTest is Test {
     TestERC20 internal usd2;
     TestERC721 internal nft;
     UniswapV3SwapAdapter internal uniswapV3SwapAdapter;
-    MockLoanRouter internal mockLoanRouter;
+    BundleCollateralWrapper internal bundleCollateralWrapper;
+    DepositTimelock internal depositTimelock;
+    LoanRouter internal loanRouter;
+    BaseYieldEscrow internal baseYieldEscrow;
     ChainlinkPriceOracle internal priceOracle;
     IUSDai internal usdai;
     StakedUSDai internal stakedUsdai;
-    IPool internal metastreetPool1;
-    IPool internal metastreetPool2;
-    TestMNAVPriceFeed internal testMnavPriceFeed;
+    TestPYUSDPriceFeed internal testPYUSDPriceFeed;
 
     function setUp() public virtual {
         vm.createSelectFork(vm.envString("ARBITRUM_RPC_URL"));
-        vm.rollFork(322784114);
+        vm.rollFork(333898546);
 
         users = Users({
             deployer: createUser("deployer"),
             normalUser1: createUser("normalUser1"),
             normalUser2: createUser("normalUser2"),
             admin: createUser("admin"),
-            manager: createUser("manager")
+            manager: createUser("manager"),
+            feeRecipient: createUser("feeRecipient"),
+            borrower: createUser("borrower")
         });
 
-        /* Get tokens */
-        getTokens();
+        /* Fund users */
+        fundUsers();
 
+        /* Deploy contracts */
         deployNft();
         deployUsd();
         deployUsdPool();
 
-        deployMockLoanRouter();
+        deployDepositTimelock();
+        deployBundleCollateralWrapper();
+        deployLoanRouter();
 
+        deployBaseYieldEscrow();
         deployUniswapV3SwapAdapter();
-        deployTestMnavPriceFeed();
+        deployTestPYUSDPriceFeed();
         deployPriceOracle();
         deployUsdai();
         deployStakedUsdai();
+        upgradeUsdai();
 
-        addToEarnersList();
-        startEarning();
-
-        setupWrappedMLiquidity();
-
-        /* Deploy MetaStreet pools */
-        deployMetastreetPool(address(nft), address(WETH));
-        deployMetastreetPool(address(nft), address(USDT));
+        setupPyusdLiquidity();
 
         /* Set approvals */
         setApprovals();
     }
 
-    function setupWrappedMLiquidity() internal {
-        /* Mint to admin as portal */
-        vm.startPrank(M_PORTAL);
-        (bool success,) =
-            M_TOKEN.call(abi.encodeWithSignature("mint(address,uint256)", address(users.admin), 20_000_001 ether));
-        require(success, "Mint failed");
-        vm.stopPrank();
-
-        /* Wrap as admin */
-        vm.startPrank(users.admin);
-        IERC20(M_TOKEN).approve(address(WRAPPED_M_TOKEN), 20_000_001 ether);
-        WRAPPED_M_TOKEN.wrap(address(users.admin), 20_000_001 ether);
-
-        require(WRAPPED_M_TOKEN.balanceOf(address(users.admin)) >= 20_000_000 ether);
+    function setupPyusdLiquidity() internal {
+        /* Mint to admin */
+        deal(address(PYUSD), address(users.admin), 40_000_002 ether);
+        deal(address(USDC), address(users.admin), 20_000_001 ether);
 
         /* Deploy pool as admin */
+        vm.startPrank(users.admin);
         UniswapPoolHelpers.setupUniswapPool(
-            address(users.admin), address(usd), address(WRAPPED_M_TOKEN), 20_000_000 ether, 20_000_000 ether
+            address(users.admin), address(usd), address(PYUSD), 20_000_000 ether, 20_000_000 ether
+        );
+        UniswapPoolHelpers.setupUniswapPool(
+            address(users.admin), address(USDC), address(PYUSD), 20_000_000 ether, 20_000_000 ether
         );
         vm.stopPrank();
     }
@@ -170,24 +180,55 @@ abstract contract BaseTest is Test {
     function deployUniswapV3SwapAdapter() internal {
         vm.startPrank(users.deployer);
 
-        address[] memory whitelistedTokens = new address[](3);
+        address[] memory whitelistedTokens = new address[](4);
         whitelistedTokens[0] = address(usd);
         whitelistedTokens[1] = address(WETH);
         whitelistedTokens[2] = address(USDT);
+        whitelistedTokens[3] = address(USDC);
 
         /* Deploy Uniswap V3 swap adapter */
-        uniswapV3SwapAdapter = new UniswapV3SwapAdapter(
-            address(WRAPPED_M_TOKEN), address(UniswapPoolHelpers.UNISWAP_ROUTER), whitelistedTokens
-        );
+        uniswapV3SwapAdapter =
+            new UniswapV3SwapAdapter(address(PYUSD), address(UniswapPoolHelpers.UNISWAP_ROUTER), whitelistedTokens);
 
         vm.stopPrank();
     }
 
-    function deployTestMnavPriceFeed() internal {
+    function deployTestPYUSDPriceFeed() internal {
         vm.startPrank(users.deployer);
 
         /* Deploy mock m chainlink oracle */
-        testMnavPriceFeed = new TestMNAVPriceFeed();
+        testPYUSDPriceFeed = new TestPYUSDPriceFeed();
+
+        vm.stopPrank();
+    }
+
+    function deployBaseYieldEscrow() internal {
+        vm.startPrank(users.deployer);
+
+        /* Deploy base token yield escrow */
+        BaseYieldEscrow baseYieldEscrowImpl = new BaseYieldEscrow(address(0), address(PYUSD));
+        TransparentUpgradeableProxy baseYieldEscrowProxy = new TransparentUpgradeableProxy(
+            address(baseYieldEscrowImpl),
+            address(users.admin),
+            abi.encodeWithSignature("initialize(address)", users.admin)
+        );
+        baseYieldEscrow = BaseYieldEscrow(address(baseYieldEscrowProxy));
+
+        vm.stopPrank();
+
+        /* Grant roles */
+        vm.startPrank(users.admin);
+        baseYieldEscrow.grantRole(keccak256("ESCROW_ADMIN_ROLE"), address(users.admin));
+        baseYieldEscrow.grantRole(keccak256("RATE_ADMIN_ROLE"), address(users.admin));
+
+        /* Fund admin */
+        deal(address(PYUSD), users.admin, 50_000_000 ether);
+
+        vm.startPrank(users.admin);
+
+        /* Deposit PYUSD into base yield escrow */
+        PYUSD.approve(address(baseYieldEscrow), 50_000_000 ether);
+        baseYieldEscrow.deposit(50_000_000 ether);
 
         vm.stopPrank();
     }
@@ -251,15 +292,11 @@ abstract contract BaseTest is Test {
         vm.stopPrank();
     }
 
-    function deployMockLoanRouter() internal {
-        mockLoanRouter = new MockLoanRouter();
-    }
-
     function deployUsdai() internal {
         vm.startPrank(users.deployer);
 
         /* Deploy usdai implementation */
-        IUSDai usdaiImpl = new USDai(address(uniswapV3SwapAdapter));
+        IUSDai usdaiImpl = new USDai(address(uniswapV3SwapAdapter), address(baseYieldEscrow), address(stakedUsdai));
 
         /* Deploy usdai proxy */
         TransparentUpgradeableProxy usdaiProxy = new TransparentUpgradeableProxy(
@@ -271,12 +308,45 @@ abstract contract BaseTest is Test {
 
         /* Set supply cap */
         usdai.setSupplyCap(type(uint256).max);
-        vm.stopPrank();
 
         /* Grant USDai role to Uniswap V3 swap adapter */
-        vm.startPrank(users.deployer);
         uniswapV3SwapAdapter.grantRole(keccak256("USDAI_ROLE"), address(usdai));
 
+        vm.stopPrank();
+
+        vm.prank(users.admin);
+        baseYieldEscrow.grantRole(keccak256("HARVEST_ADMIN_ROLE"), address(usdai));
+
+        /* Deploy base yield escrow implementation */
+        BaseYieldEscrow baseYieldEscrowImpl = new BaseYieldEscrow(address(usdai), address(PYUSD));
+
+        /* Lookup proxy admin from EIP-1967 storage slot */
+        address proxyAdmin = address(uint160(uint256(vm.load(address(baseYieldEscrow), ERC1967Utils.ADMIN_SLOT))));
+
+        vm.prank(users.admin);
+
+        ProxyAdmin(proxyAdmin).upgradeAndCall(
+            ITransparentUpgradeableProxy(address(baseYieldEscrow)),
+            address(baseYieldEscrowImpl),
+            "" // No additional initialization data
+        );
+        vm.stopPrank();
+    }
+
+    function upgradeUsdai() internal {
+        /* Deploy usdai implementation */
+        IUSDai usdaiImpl = new USDai(address(uniswapV3SwapAdapter), address(baseYieldEscrow), address(stakedUsdai));
+
+        /* Lookup proxy admin from EIP-1967 storage slot */
+        address proxyAdmin = address(uint160(uint256(vm.load(address(usdai), ERC1967Utils.ADMIN_SLOT))));
+
+        vm.prank(users.admin);
+
+        ProxyAdmin(proxyAdmin).upgradeAndCall(
+            ITransparentUpgradeableProxy(address(usdai)),
+            address(usdaiImpl),
+            "" // No additional initialization data
+        );
         vm.stopPrank();
     }
 
@@ -284,13 +354,15 @@ abstract contract BaseTest is Test {
         vm.startPrank(users.deployer);
 
         /* Deploy staked usdai implementation */
-        address[] memory tokens = new address[](2);
+        address[] memory tokens = new address[](3);
         tokens[0] = address(WETH);
         tokens[1] = address(USDT);
-        address[] memory priceFeeds = new address[](2);
+        tokens[2] = address(USDC);
+        address[] memory priceFeeds = new address[](3);
         priceFeeds[0] = address(WETH_PRICE_FEED);
         priceFeeds[1] = address(USDT_PRICE_FEED);
-        priceOracle = new ChainlinkPriceOracle(address(testMnavPriceFeed), tokens, priceFeeds);
+        priceFeeds[2] = address(USDC_PRICE_FEED);
+        priceOracle = new ChainlinkPriceOracle(address(testPYUSDPriceFeed), tokens, priceFeeds, users.admin);
 
         vm.stopPrank();
     }
@@ -301,9 +373,9 @@ abstract contract BaseTest is Test {
         /* Deploy staked usdai implementation */
         StakedUSDai stakedUsdaiImpl = new StakedUSDai(
             address(usdai),
-            address(WRAPPED_M_TOKEN),
+            WRAPPED_M_TOKEN,
             address(priceOracle),
-            address(mockLoanRouter),
+            address(loanRouter),
             address(users.admin),
             uint64(block.timestamp),
             100,
@@ -327,103 +399,71 @@ abstract contract BaseTest is Test {
 
         /* Grant bridge admin role to manager only for testing */
         stakedUsdai.grantRole(keccak256("BRIDGE_ADMIN_ROLE"), address(users.manager));
-        vm.stopPrank();
-    }
 
-    function addToEarnersList() internal {
-        vm.startPrank(M_PORTAL);
-
-        (bool success1,) =
-            M_REGISTRAR.call(abi.encodeWithSignature("addToList(bytes32,address)", EARNERS_LIST, address(usdai)));
-        require(success1, "Add to earners list failed");
-
-        (bool success2,) =
-            M_REGISTRAR.call(abi.encodeWithSignature("addToList(bytes32,address)", EARNERS_LIST, address(stakedUsdai)));
-        require(success2, "Add to earners list failed");
-
-        /* Set claim override recipient for usdai */
-        bytes32 key = keccak256(abi.encode(CLAIM_OVERRIDE_RECIPIENT_PREFIX, address(usdai)));
-        (bool success3,) = M_REGISTRAR.call(
-            abi.encodeWithSignature("setKey(bytes32,bytes32)", key, bytes32(uint256(uint160(address(stakedUsdai)))))
-        );
-        require(success3, "Set key failed");
+        /* Grant base yield recipient role to staked USDai */
+        AccessControl(address(usdai)).grantRole(keccak256("BASE_YIELD_RECIPIENT_ROLE"), address(stakedUsdai));
 
         vm.stopPrank();
     }
 
-    function startEarning() internal {
-        vm.startPrank(users.admin);
-        WRAPPED_M_TOKEN.startEarningFor(address(usdai));
-        WRAPPED_M_TOKEN.startEarningFor(address(stakedUsdai));
+    function deployBundleCollateralWrapper() internal {
+        vm.startPrank(users.deployer);
+        bundleCollateralWrapper = new BundleCollateralWrapper();
         vm.stopPrank();
     }
 
-    function getTokens() internal {
-        /* Get tokens from WETH holder */
-        vm.startPrank(0xe50fA9b3c56FfB159cB0FCA61F5c9D750e8128c8);
-        IERC20(WETH).balanceOf(0xe50fA9b3c56FfB159cB0FCA61F5c9D750e8128c8);
-
-        /// forge-lint: disable-next-line
-        IERC20(WETH).transfer(address(users.admin), 10_000 ether);
-        /// forge-lint: disable-next-line
-        IERC20(WETH).transfer(address(users.normalUser1), 2_000 ether);
-        /// forge-lint: disable-next-line
-        IERC20(WETH).transfer(address(users.normalUser2), 2_000 ether);
-        vm.stopPrank();
-
-        /* Get tokens from USDT holder */
-        vm.startPrank(0xB38e8c17e38363aF6EbdCb3dAE12e0243582891D);
-        /// forge-lint: disable-next-line
-        IERC20(USDT).transfer(address(users.admin), 10_000_000 * 1e6);
-        vm.stopPrank();
-    }
-
-    function deployMetastreetPool(address nft_, address tok) internal {
+    function deployDepositTimelock() internal {
         vm.startPrank(users.deployer);
 
-        address[] memory collateralTokens = new address[](1);
-        collateralTokens[0] = nft_;
+        // Deploy implementation
+        DepositTimelock depositTimelockImpl = new DepositTimelock();
 
-        /* Set pool parameters */
-        bytes memory poolParams = abi.encode(collateralTokens, tok, address(0), durations, rates);
+        // Deploy proxy
+        TransparentUpgradeableProxy depositTimelockProxy = new TransparentUpgradeableProxy(
+            address(depositTimelockImpl),
+            address(users.admin),
+            abi.encodeWithSignature("initialize(address)", users.deployer)
+        );
 
-        if (address(metastreetPool1) == address(0)) {
-            /* Deploy pool proxy */
-            metastreetPool1 = IPool(
-                MetastreetPoolHelpers.METASTREET_POOL_FACTORY.createProxied(
-                    MetastreetPoolHelpers.METASTREET_POOL_IMPL, poolParams
-                )
-            );
-            vm.label({account: address(metastreetPool1), newLabel: "Pool1"});
-        } else {
-            /* Deploy pool proxy */
-            metastreetPool2 = IPool(
-                MetastreetPoolHelpers.METASTREET_POOL_FACTORY.createProxied(
-                    MetastreetPoolHelpers.METASTREET_POOL_IMPL, poolParams
-                )
-            );
-            vm.label({account: address(metastreetPool2), newLabel: "Pool2"});
-        }
+        // Create interface
+        depositTimelock = DepositTimelock(address(depositTimelockProxy));
 
         vm.stopPrank();
     }
 
-    function createLoan(IPool pool, address user, uint256 principal) internal returns (bytes memory loanReceipt) {
-        uint128[] memory ticks = new uint128[](1);
-        ticks[0] = tick;
+    function deployLoanRouter() internal {
+        vm.startPrank(users.deployer);
 
-        vm.startPrank(user);
-        vm.recordLogs();
-        pool.borrow(principal, 30 days, address(nft), user == users.normalUser1 ? 123 : 124, principal * 2, ticks, "");
-        Vm.Log[] memory entries = vm.getRecordedLogs();
+        // Deploy implementation
+        LoanRouter loanRouterImpl =
+            new LoanRouter(address(depositTimelock), ENGLISH_AUCTION_LIQUIDATOR, address(bundleCollateralWrapper));
+
+        // Deploy proxy
+        TransparentUpgradeableProxy loanRouterProxy = new TransparentUpgradeableProxy(
+            address(loanRouterImpl),
+            address(users.admin),
+            abi.encodeWithSignature(
+                "initialize(address,address,uint256)", users.deployer, users.feeRecipient, LOAN_ROUTER_ADMIN_FEE_RATE
+            )
+        );
+
+        // Create interface
+        loanRouter = LoanRouter(address(loanRouterProxy));
+
         vm.stopPrank();
-        return abi.decode(entries[entries.length - 1].data, (bytes));
     }
 
-    function repayLoan(IPool pool, address user, bytes memory loanReceipt) internal {
-        vm.startPrank(user);
-        pool.repay(loanReceipt);
-        vm.stopPrank();
+    function fundUsers() internal {
+        // Fund WETH holders
+        deal(address(WETH), address(users.admin), 10_000 ether);
+        deal(address(WETH), address(users.normalUser1), 2_000 ether);
+        deal(address(WETH), address(users.normalUser2), 2_000 ether);
+
+        // Fund USDT holders
+        deal(address(USDT), address(users.admin), 10_000_000 * 1e6);
+
+        // Fund USDC holders
+        deal(USDC, users.borrower, 10_000_000 * 1e6);
     }
 
     function createUser(
@@ -441,18 +481,6 @@ abstract contract BaseTest is Test {
 
         for (uint256 i = 0; i < normalUsers.length; i++) {
             vm.startPrank(normalUsers[i]);
-
-            /* Set NFT approvals for all MS pools */
-            if (address(metastreetPool1) != address(0)) {
-                nft.setApprovalForAll(address(metastreetPool1), true);
-                IERC20(WETH).approve(address(metastreetPool1), type(uint256).max);
-                IERC20(USDT).approve(address(metastreetPool1), type(uint256).max);
-            }
-            if (address(metastreetPool2) != address(0)) {
-                nft.setApprovalForAll(address(metastreetPool2), true);
-                IERC20(WETH).approve(address(metastreetPool2), type(uint256).max);
-                IERC20(USDT).approve(address(metastreetPool2), type(uint256).max);
-            }
 
             /* Approve tokens */
             usd.approve(address(usdai), type(uint256).max);
@@ -492,19 +520,13 @@ abstract contract BaseTest is Test {
             vm.warp(redemptionTimestamp + 30 days);
         }
 
+        /* Harvest base yield */
+        stakedUsdai.harvestBaseYield();
+
         uint256 amountProcessed = stakedUsdai.serviceRedemptions(requestedShares);
 
         vm.stopPrank();
 
         return amountProcessed;
-    }
-
-    function updateMTokenIndex() internal {
-        uint256 currentIndex = WRAPPED_M_TOKEN.currentIndex();
-
-        vm.startPrank(M_PORTAL);
-        (bool success,) = M_TOKEN.call(abi.encodeWithSignature("updateIndex(uint128)", currentIndex + 1000));
-        require(success, "Update M token index failed");
-        vm.stopPrank();
     }
 }

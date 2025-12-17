@@ -3,63 +3,59 @@ pragma solidity 0.8.29;
 
 import {BaseTest} from "../Base.t.sol";
 
+import {IUSDai} from "../../src/interfaces/IUSDai.sol";
+
 contract StakedUSDaiHarvestBaseYieldTest is BaseTest {
+    uint256 internal usdaiAmount;
+
     function setUp() public override {
         super.setUp();
 
+        vm.prank(users.admin);
+
+        /* Set rate tiers */
+        IUSDai.RateTier[] memory rateTiers = new IUSDai.RateTier[](2);
+        rateTiers[0] = IUSDai.RateTier({rate: BASE_YIELD_RATE_1, threshold: BASE_YIELD_CUTOFF_1});
+        rateTiers[1] = IUSDai.RateTier({rate: BASE_YIELD_RATE_2, threshold: BASE_YIELD_CUTOFF_2});
+        baseYieldEscrow.setRateTiers(rateTiers);
+
         // User approves USDai to spend their USD
         vm.startPrank(users.normalUser1);
-        usd.approve(address(usdai), 1_000_000 ether);
+        usd.approve(address(usdai), 957_033_503 * 1e6);
 
-        // User deposits USD into USDai
-        uint256 initialBalance = usdai.deposit(address(usd), 1_000_000 ether, 0, users.normalUser1);
+        // User deposits amount of USD into USDai (~957,027,799 USD)
+        usdaiAmount = usdai.deposit(address(usd), 957_033_503 * 1e6, 0, users.normalUser1);
 
-        // User deposits USDai into StakedUSDai
-        usdai.approve(address(stakedUsdai), initialBalance);
-        stakedUsdai.deposit(initialBalance, users.normalUser1);
+        // Stake USDai
+        usdai.approve(address(stakedUsdai), usdaiAmount);
+        stakedUsdai.deposit(usdaiAmount, users.normalUser1);
 
         vm.stopPrank();
 
-        WRAPPED_M_TOKEN.currentIndex();
-
-        vm.warp(block.timestamp + 1 days);
-
-        updateMTokenIndex();
+        /* Set base yield accrual timestamp via storage slot */
+        vm.store(
+            address(usdai),
+            bytes32(uint256(0xad76c5b481cb106971e0ae4c23a09cb5b1dc9dba5fad96d9694630df5e853900) + 2),
+            bytes32(uint256(block.timestamp))
+        );
     }
 
     function test__StakedUSDaiHarvestBaseYield() public {
-        vm.startPrank(users.manager);
-        uint256 initialUsdaiBalance = usdai.balanceOf(address(stakedUsdai));
-        uint256 claimableBaseYield = stakedUsdai.claimableBaseYield();
-
-        assertGt(claimableBaseYield, 0, "Claimable base yield should be greater than 0");
-
-        uint256 adminBalanceBefore = usdai.balanceOf(address(users.admin));
+        vm.warp(block.timestamp + 365 days);
 
         uint256 navBefore = stakedUsdai.nav();
+        uint256 redemptionSharePriceBefore = stakedUsdai.redemptionSharePrice();
+        uint256 depositSharePriceBefore = stakedUsdai.depositSharePrice();
 
-        WRAPPED_M_TOKEN.claimFor(address(stakedUsdai));
-        WRAPPED_M_TOKEN.claimFor(address(usdai));
+        vm.prank(users.manager);
+        (uint256 usdaiYield, uint256 adminFee) = stakedUsdai.harvestBaseYield();
 
-        (uint256 depositAmount, uint256 adminFee) = stakedUsdai.depositBaseYield(claimableBaseYield);
+        // Verify yield
+        assertApproxEqRel(usdaiYield + adminFee, usdaiAmount * 450 / 10_000, 4e13);
 
-        assertGt(adminFee, 0, "Admin fee should be greater than 0");
-        assertEq(stakedUsdai.claimableBaseYield(), 0, "Claimable base yield should be 0");
-
-        assertEq(
-            usdai.balanceOf(address(stakedUsdai)),
-            initialUsdaiBalance + depositAmount,
-            "USDai balance should be equal to initial balance plus claimable base yield"
-        );
-
-        assertEq(
-            usdai.balanceOf(address(users.admin)),
-            adminBalanceBefore + adminFee,
-            "Admin balance should be equal to initial balance plus admin fee"
-        );
-
-        assertEq(navBefore, stakedUsdai.nav(), "Nav should be equal to nav after");
-
-        vm.stopPrank();
+        // Verify no change to NAV, redemption share price, or deposit share price
+        assertApproxEqRel(stakedUsdai.nav(), navBefore, 2e4);
+        assertApproxEqRel(stakedUsdai.redemptionSharePrice(), redemptionSharePriceBefore, 6e3);
+        assertApproxEqRel(stakedUsdai.depositSharePrice(), depositSharePriceBefore, 6e3);
     }
 }

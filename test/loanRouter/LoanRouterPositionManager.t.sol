@@ -4,7 +4,6 @@ pragma solidity 0.8.29;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
-import {console} from "forge-std/console.sol";
 
 import {BaseLoanRouterTest} from "./Base.t.sol";
 
@@ -97,10 +96,10 @@ contract LoanRouterPositionManagerTest is BaseLoanRouterTest {
     /*------------------------------------------------------------------------*/
     // Expected pending balance for 1M USDC loan (converted to USDai using price oracle)
     // This reflects the actual USDC price from the Arbitrum mainnet price oracle
-    uint256 constant PENDING_BALANCE_1M = 999958860000000000000000; // ~999.96e18 USDai
+    uint256 constant PENDING_BALANCE_1M = 1000100992059228087000000;
 
     /* Expected refund amount from DepositTimelock */
-    uint256 constant REFUND_AMOUNT = 132025046266135080000;
+    uint256 constant REFUND_AMOUNT_IN_USDAI = 49990043087575555632;
 
     /*------------------------------------------------------------------------*/
     /* Helper functions */
@@ -142,7 +141,7 @@ contract LoanRouterPositionManagerTest is BaseLoanRouterTest {
     ) internal returns (ILoanRouter.LoanTerms memory) {
         ILoanRouter.LoanTerms memory loanTerms = createLoanTerms(principal);
         bytes32 loanTermsHash = loanRouter.loanTermsHash(loanTerms);
-        vm.startPrank(users.strategyAdmin);
+        vm.startPrank(users.manager);
         stakedUsdai.depositLoanTimelock(loanTermsHash, depositAmount, uint64(block.timestamp + 7 days));
         vm.stopPrank();
         return loanTerms;
@@ -185,6 +184,7 @@ contract LoanRouterPositionManagerTest is BaseLoanRouterTest {
 
         assertEq(accrued, 0);
     }
+
     /*------------------------------------------------------------------------*/
     /* Tests: depositLoanTimelock and onLoanOriginated Flow */
     /*------------------------------------------------------------------------*/
@@ -221,7 +221,7 @@ contract LoanRouterPositionManagerTest is BaseLoanRouterTest {
 
         // Verify balances after origination
         // Note: repaymentBalance is not 0 because USDai refunds are tracked
-        assertBalances("After onLoanOriginated", 0, REFUND_AMOUNT, PENDING_BALANCE_1M, 0);
+        assertBalances("After onLoanOriginated", 0, REFUND_AMOUNT_IN_USDAI, PENDING_BALANCE_1M, 0);
     }
 
     function test__LoanRouterPositionManagerAccruedInterest_AfterOrigination() public {
@@ -255,7 +255,7 @@ contract LoanRouterPositionManagerTest is BaseLoanRouterTest {
         // Calculate expected interest based on pending balance
         uint256 expectedInterest = calculateExpectedInterest(PENDING_BALANCE_1M, RATE_10_PCT, 30 days);
 
-        assertBalances("After 30 days", 0, REFUND_AMOUNT, PENDING_BALANCE_1M, expectedInterest);
+        assertBalances("After 30 days", 0, REFUND_AMOUNT_IN_USDAI, PENDING_BALANCE_1M, expectedInterest);
     }
 
     function test__LoanRouterPositionManagerAccruedInterest_CompoundsOverTime() public {
@@ -394,12 +394,12 @@ contract LoanRouterPositionManagerTest is BaseLoanRouterTest {
         assertEq(navAfter, navBefore, "NAV should be the same after liquidation");
 
         // Verify interest stopped accruing
-        assertBalances("After onLoanLiquidated", 0, REFUND_AMOUNT, PENDING_BALANCE_1M, accruedBefore);
+        assertBalances("After onLoanLiquidated", 0, REFUND_AMOUNT_IN_USDAI, PENDING_BALANCE_1M, accruedBefore);
 
         // Warp forward and verify interest doesn't increase
         warp(30 days);
 
-        assertBalances("30 days after liquidation", 0, REFUND_AMOUNT, PENDING_BALANCE_1M, accruedBefore);
+        assertBalances("30 days after liquidation", 0, REFUND_AMOUNT_IN_USDAI, PENDING_BALANCE_1M, accruedBefore);
     }
 
     function test__LoanRouterPositionManagerOnLiquidated_AccrualStateTransition() public {
@@ -539,14 +539,15 @@ contract LoanRouterPositionManagerTest is BaseLoanRouterTest {
         // Setup first loan
         ILoanRouter.LoanTerms memory loanTerms1 = createLoanTerms(principal1, wrappedTokenId, encodedBundle);
         bytes32 loanTermsHash1 = loanRouter.loanTermsHash(loanTerms1);
-        vm.prank(users.strategyAdmin);
+        uint256 usdaiBalance = usdai.balanceOf(address(stakedUsdai));
+        vm.prank(users.manager);
         stakedUsdai.depositLoanTimelock(loanTermsHash1, deposit1, uint64(block.timestamp + 7 days));
         _borrowLoan(loanTerms1);
 
         // Setup second loan
         ILoanRouter.LoanTerms memory loanTerms2 = createLoanTerms(principal2, wrappedTokenId2, encodedBundle2);
         bytes32 loanTermsHash2 = loanRouter.loanTermsHash(loanTerms2);
-        vm.prank(users.strategyAdmin);
+        vm.prank(users.manager);
         stakedUsdai.depositLoanTimelock(loanTermsHash2, deposit2, uint64(block.timestamp + 7 days));
         _borrowLoan(loanTerms2);
         (, uint256 totalPending,) = stakedUsdai.loanRouterBalances();
@@ -606,12 +607,12 @@ contract LoanRouterPositionManagerTest is BaseLoanRouterTest {
         uint256 depositAmount = (1_000_000 * 1e18 * 100015) / 100000;
         ILoanRouter.LoanTerms memory loanTerms = createLoanTerms(principal);
         bytes32 loanTermsHash = loanRouter.loanTermsHash(loanTerms);
-        vm.startPrank(users.strategyAdmin);
+        vm.startPrank(users.manager);
         // Deposit funds with short expiration
         stakedUsdai.depositLoanTimelock(loanTermsHash, depositAmount, uint64(block.timestamp + 1 hours));
 
         assertBalances("After deposit", depositAmount, 0, 0, 0);
-        uint256 usdaiBalanceBefore = IERC20(USDAI).balanceOf(address(stakedUsdai));
+        uint256 usdaiBalanceBefore = IERC20(address(usdai)).balanceOf(address(stakedUsdai));
         // Warp past expiration
         warp(2 hours);
 
@@ -622,7 +623,7 @@ contract LoanRouterPositionManagerTest is BaseLoanRouterTest {
         assertBalances("After cancel", 0, 0, 0, 0);
 
         assertEq(
-            IERC20(USDAI).balanceOf(address(stakedUsdai)),
+            IERC20(address(usdai)).balanceOf(address(stakedUsdai)),
             usdaiBalanceBefore + depositAmount,
             "USDAI balance should increase by deposit amount"
         );
@@ -661,7 +662,7 @@ contract LoanRouterPositionManagerTest is BaseLoanRouterTest {
         uint256 usdcToConvert = usdcBalance / 2;
 
         // Convert USDC to USDai
-        vm.startPrank(users.strategyAdmin);
+        vm.startPrank(users.manager);
         stakedUsdai.depositLoanRepayment(
             USDC,
             usdcToConvert,
@@ -692,7 +693,7 @@ contract LoanRouterPositionManagerTest is BaseLoanRouterTest {
         bytes32 loanTermsHash1 = loanRouter.loanTermsHash(loanTerms1);
 
         // Deposit funds for first loan
-        vm.startPrank(users.strategyAdmin);
+        vm.startPrank(users.manager);
         stakedUsdai.depositLoanTimelock(loanTermsHash1, deposit1, uint64(block.timestamp + 7 days));
         vm.stopPrank();
 
@@ -701,7 +702,7 @@ contract LoanRouterPositionManagerTest is BaseLoanRouterTest {
         bytes32 loanTermsHash2 = loanRouter.loanTermsHash(loanTerms2);
 
         // Deposit funds for second loan
-        vm.startPrank(users.strategyAdmin);
+        vm.startPrank(users.manager);
         stakedUsdai.depositLoanTimelock(loanTermsHash2, deposit2, uint64(block.timestamp + 7 days));
         vm.stopPrank();
 
@@ -735,13 +736,13 @@ contract LoanRouterPositionManagerTest is BaseLoanRouterTest {
         // 2. Originate
         _borrowLoan(loanTerms);
 
-        assertBalances("2. After origination", 0, REFUND_AMOUNT, PENDING_BALANCE_1M, 0);
+        assertBalances("2. After origination", 0, REFUND_AMOUNT_IN_USDAI, PENDING_BALANCE_1M, 0);
 
         // 3. Wait and accrue interest
         warp(30 days);
         uint256 expectedInterest = calculateExpectedInterest(PENDING_BALANCE_1M, RATE_10_PCT, 30 days);
 
-        assertBalances("3. After 30 days", 0, REFUND_AMOUNT, PENDING_BALANCE_1M, expectedInterest);
+        assertBalances("3. After 30 days", 0, REFUND_AMOUNT_IN_USDAI, PENDING_BALANCE_1M, expectedInterest);
 
         // 4. Full repayment
         warp(REPAYMENT_INTERVAL - 30 days);
@@ -765,7 +766,7 @@ contract LoanRouterPositionManagerTest is BaseLoanRouterTest {
         // Convert half of physical USDC balance (conservative amount to ensure we don't exceed repayment)
         uint256 usdcToConvert = usdcBalance / 2;
 
-        vm.startPrank(users.strategyAdmin);
+        vm.startPrank(users.manager);
         stakedUsdai.depositLoanRepayment(USDC, usdcToConvert, usdcToConvert * 1e12 * 98 / 100, "");
         vm.stopPrank();
 
@@ -786,7 +787,7 @@ contract LoanRouterPositionManagerTest is BaseLoanRouterTest {
         _borrowLoan(loanTerms);
 
         // Verify initial state
-        assertBalances("After origination", 0, REFUND_AMOUNT, PENDING_BALANCE_1M, 0);
+        assertBalances("After origination", 0, REFUND_AMOUNT_IN_USDAI, PENDING_BALANCE_1M, 0);
 
         // ===== First repayment period (30 days) =====
         warp(REPAYMENT_INTERVAL);
@@ -795,7 +796,9 @@ contract LoanRouterPositionManagerTest is BaseLoanRouterTest {
         uint256 expectedInterestBeforeRepay1 =
             calculateExpectedInterest(PENDING_BALANCE_1M, RATE_10_PCT, REPAYMENT_INTERVAL);
 
-        assertBalances("Before first repayment", 0, REFUND_AMOUNT, PENDING_BALANCE_1M, expectedInterestBeforeRepay1);
+        assertBalances(
+            "Before first repayment", 0, REFUND_AMOUNT_IN_USDAI, PENDING_BALANCE_1M, expectedInterestBeforeRepay1
+        );
 
         // Make first partial repayment
         (, uint64 maturity, uint64 repaymentDeadline, uint256 balance) =
@@ -992,7 +995,7 @@ contract LoanRouterPositionManagerTest is BaseLoanRouterTest {
         MockLender mockLender = new MockLender(address(loanRouter), USDC, mockLenderPrincipal);
 
         // Fund the mock lender with USDai for deposit timelock
-        deal(USDAI, address(mockLender), mockLenderPrincipal * 1e12 * 2);
+        deal(address(usdai), address(mockLender), mockLenderPrincipal * 1e12 * 2);
 
         // Deposit funds for StakedUSDai tranche
         uint256 stakedUsdaiDeposit = (stakedUsdaiPrincipal * 1e12 * 100015) / 100000; // Add buffer for slippage
@@ -1025,14 +1028,14 @@ contract LoanRouterPositionManagerTest is BaseLoanRouterTest {
         bytes32 loanTermsHash = loanRouter.loanTermsHash(loanTerms);
 
         // Deposit funds through StakedUSDai
-        vm.prank(users.strategyAdmin);
+        vm.prank(users.manager);
         stakedUsdai.depositLoanTimelock(loanTermsHash, stakedUsdaiDeposit, uint64(block.timestamp + 7 days));
 
         // Deposit funds through MockLender via DepositTimelock
         vm.startPrank(address(mockLender));
-        IERC20(USDAI).approve(address(depositTimelock), type(uint256).max);
+        IERC20(address(usdai)).approve(address(depositTimelock), type(uint256).max);
         depositTimelock.deposit(
-            address(loanRouter), loanTermsHash, USDAI, mockLenderDeposit, uint64(block.timestamp + 7 days)
+            address(loanRouter), loanTermsHash, address(usdai), mockLenderDeposit, uint64(block.timestamp + 7 days)
         );
         vm.stopPrank();
 
@@ -1100,10 +1103,10 @@ contract LoanRouterPositionManagerTest is BaseLoanRouterTest {
         uint256 totalPrincipal = stakedUsdaiPrincipal + mockLenderPrincipal;
 
         // Create mock lender for USDai
-        MockLender mockLender = new MockLender(address(loanRouter), USDAI, mockLenderPrincipal);
+        MockLender mockLender = new MockLender(address(loanRouter), address(usdai), mockLenderPrincipal);
 
         // Fund the mock lender with USDai
-        deal(USDAI, address(mockLender), mockLenderPrincipal * 2);
+        deal(address(usdai), address(mockLender), mockLenderPrincipal * 2);
 
         // Create loan terms with USDai as currency token
         ILoanRouter.TrancheSpec[] memory trancheSpecs = new ILoanRouter.TrancheSpec[](2);
@@ -1115,7 +1118,7 @@ contract LoanRouterPositionManagerTest is BaseLoanRouterTest {
         ILoanRouter.LoanTerms memory loanTerms = ILoanRouter.LoanTerms({
             expiration: uint64(block.timestamp + 7 days),
             borrower: users.borrower,
-            currencyToken: USDAI, // <<<< Using USDai (18 decimals) instead of USDC!
+            currencyToken: address(usdai), // <<<< Using USDai (18 decimals) instead of USDC!
             collateralToken: address(bundleCollateralWrapper),
             collateralTokenId: wrappedTokenId,
             duration: LOAN_DURATION,
@@ -1132,14 +1135,14 @@ contract LoanRouterPositionManagerTest is BaseLoanRouterTest {
         bytes32 loanTermsHash = loanRouter.loanTermsHash(loanTerms);
 
         // Deposit funds through StakedUSDai for tranche 0
-        vm.prank(users.strategyAdmin);
+        vm.prank(users.manager);
         stakedUsdai.depositLoanTimelock(loanTermsHash, stakedUsdaiPrincipal, uint64(block.timestamp + 7 days));
 
         // Deposit funds through MockLender via DepositTimelock
         vm.startPrank(address(mockLender));
-        IERC20(USDAI).approve(address(depositTimelock), type(uint256).max);
+        IERC20(address(usdai)).approve(address(depositTimelock), type(uint256).max);
         depositTimelock.deposit(
-            address(loanRouter), loanTermsHash, USDAI, mockLenderPrincipal, uint64(block.timestamp + 7 days)
+            address(loanRouter), loanTermsHash, address(usdai), mockLenderPrincipal, uint64(block.timestamp + 7 days)
         );
         vm.stopPrank();
 
@@ -1164,10 +1167,10 @@ contract LoanRouterPositionManagerTest is BaseLoanRouterTest {
         uint256 paymentAmount = principalPayment + interestPayment; // No unscaling needed for 18 decimals
 
         // Fund borrower with USDai for repayment
-        deal(USDAI, users.borrower, paymentAmount * 10);
+        deal(address(usdai), users.borrower, paymentAmount * 10);
 
         vm.startPrank(users.borrower);
-        IERC20(USDAI).approve(address(loanRouter), type(uint256).max);
+        IERC20(address(usdai)).approve(address(loanRouter), type(uint256).max);
         loanRouter.repay(loanTerms, paymentAmount);
         vm.stopPrank();
 
@@ -1182,7 +1185,7 @@ contract LoanRouterPositionManagerTest is BaseLoanRouterTest {
         paymentAmount = principalPayment + interestPayment;
 
         // Fund borrower with more USDai
-        deal(USDAI, users.borrower, paymentAmount * 10);
+        deal(address(usdai), users.borrower, paymentAmount * 10);
 
         vm.prank(users.borrower);
         loanRouter.repay(loanTerms, paymentAmount);
@@ -1195,7 +1198,7 @@ contract LoanRouterPositionManagerTest is BaseLoanRouterTest {
             uint256 finalPayment = totalPrincipal * 2;
 
             // Fund borrower with USDai for final payment
-            deal(USDAI, users.borrower, finalPayment);
+            deal(address(usdai), users.borrower, finalPayment);
 
             vm.prank(users.borrower);
             loanRouter.repay(loanTerms, finalPayment);
@@ -1232,8 +1235,8 @@ contract LoanRouterPositionManagerTest is BaseLoanRouterTest {
         uint256 totalPrincipal = stakedUsdaiPrincipal + mockLenderPrincipal;
 
         // Create mock lender for USDai
-        MockLender mockLender = new MockLender(address(loanRouter), USDAI, mockLenderPrincipal);
-        deal(USDAI, address(mockLender), mockLenderPrincipal * 2);
+        MockLender mockLender = new MockLender(address(loanRouter), address(usdai), mockLenderPrincipal);
+        deal(address(usdai), address(mockLender), mockLenderPrincipal * 2);
 
         // Create loan terms
         ILoanRouter.TrancheSpec[] memory trancheSpecs = new ILoanRouter.TrancheSpec[](2);
@@ -1245,7 +1248,7 @@ contract LoanRouterPositionManagerTest is BaseLoanRouterTest {
         ILoanRouter.LoanTerms memory loanTerms = ILoanRouter.LoanTerms({
             expiration: uint64(block.timestamp + 7 days),
             borrower: users.borrower,
-            currencyToken: USDAI,
+            currencyToken: address(usdai),
             collateralToken: address(bundleCollateralWrapper),
             collateralTokenId: wrappedTokenId,
             duration: LOAN_DURATION,
@@ -1262,18 +1265,18 @@ contract LoanRouterPositionManagerTest is BaseLoanRouterTest {
         bytes32 loanTermsHash = loanRouter.loanTermsHash(loanTerms);
 
         // Fund and approve
-        deal(USDAI, users.borrower, totalPrincipal);
+        deal(address(usdai), users.borrower, totalPrincipal);
         vm.prank(users.borrower);
-        IERC20(USDAI).approve(address(loanRouter), type(uint256).max);
+        IERC20(address(usdai)).approve(address(loanRouter), type(uint256).max);
 
         // Deposit funds
-        vm.prank(users.strategyAdmin);
+        vm.prank(users.manager);
         stakedUsdai.depositLoanTimelock(loanTermsHash, stakedUsdaiPrincipal, uint64(block.timestamp + 7 days));
 
         vm.startPrank(address(mockLender));
-        IERC20(USDAI).approve(address(depositTimelock), type(uint256).max);
+        IERC20(address(usdai)).approve(address(depositTimelock), type(uint256).max);
         depositTimelock.deposit(
-            address(loanRouter), loanTermsHash, USDAI, mockLenderPrincipal, uint64(block.timestamp + 7 days)
+            address(loanRouter), loanTermsHash, address(usdai), mockLenderPrincipal, uint64(block.timestamp + 7 days)
         );
         vm.stopPrank();
 
@@ -1287,8 +1290,6 @@ contract LoanRouterPositionManagerTest is BaseLoanRouterTest {
         vm.prank(users.borrower);
         loanRouter.borrow(loanTerms, depositInfos);
 
-        console.log("\n=== Making Many Repayments to Accumulate Dust ===");
-
         // Make many small repayments
         for (uint256 i = 0; i < 20; i++) {
             warp(REPAYMENT_INTERVAL);
@@ -1300,7 +1301,7 @@ contract LoanRouterPositionManagerTest is BaseLoanRouterTest {
 
             uint256 paymentAmount = principalPayment + interestPayment;
 
-            deal(USDAI, users.borrower, paymentAmount * 2);
+            deal(address(usdai), users.borrower, paymentAmount * 2);
 
             vm.prank(users.borrower);
             loanRouter.repay(loanTerms, paymentAmount);
@@ -1312,7 +1313,7 @@ contract LoanRouterPositionManagerTest is BaseLoanRouterTest {
 
         if (balance > 0) {
             uint256 finalPayment = totalPrincipal * 2;
-            deal(USDAI, users.borrower, finalPayment);
+            deal(address(usdai), users.borrower, finalPayment);
 
             vm.prank(users.borrower);
             loanRouter.repay(loanTerms, finalPayment);

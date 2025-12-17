@@ -15,6 +15,7 @@ import "@openzeppelin/contracts-upgradeable/utils/MulticallUpgradeable.sol";
 import "./interfaces/IUSDai.sol";
 import "./interfaces/ISwapAdapter.sol";
 import "./interfaces/IMintableBurnable.sol";
+import "./interfaces/IBaseYieldEscrow.sol";
 
 /**
  * @title USDai ERC20
@@ -52,11 +53,28 @@ contract USDai is
     bytes32 internal constant DEPOSIT_ADMIN_ROLE = keccak256("DEPOSIT_ADMIN_ROLE");
 
     /**
+     * @notice Convert base token admin role
+     */
+    bytes32 internal constant CONVERT_BASE_TOKEN_ADMIN_ROLE = keccak256("CONVERT_BASE_TOKEN_ADMIN_ROLE");
+
+    /**
      * @notice Supply storage location
      * @dev keccak256(abi.encode(uint256(keccak256("USDai.supply")) - 1)) & ~bytes32(uint256(0xff));
      */
     bytes32 private constant SUPPLY_STORAGE_LOCATION =
         0x5fc387bd350b82c09f22bee4c04d61669980ce519c352560e36bc6144f9cf800;
+
+    /**
+     * @notice Base yield accrual storage location
+     * @dev keccak256(abi.encode(uint256(keccak256("USDai.baseYieldAccrual")) - 1)) & ~bytes32(uint256(0xff));
+     */
+    bytes32 private constant BASE_YIELD_ACCRUAL_STORAGE_LOCATION =
+        0xad76c5b481cb106971e0ae4c23a09cb5b1dc9dba5fad96d9694630df5e853900;
+
+    /**
+     * @notice Fixed point scale
+     */
+    uint256 private constant FIXED_POINT_SCALE = 1e18;
 
     /*------------------------------------------------------------------------*/
     /* Immutable state */
@@ -77,6 +95,16 @@ contract USDai is
      */
     uint256 internal immutable _scaleFactor;
 
+    /**
+     * @notice Base yield escrow
+     */
+    IBaseYieldEscrow internal immutable _baseYieldEscrow;
+
+    /**
+     * @notice Base yield recipient
+     */
+    address internal immutable _baseYieldRecipient;
+
     /*------------------------------------------------------------------------*/
     /* Constructor */
     /*------------------------------------------------------------------------*/
@@ -84,15 +112,17 @@ contract USDai is
     /**
      * @notice USDai Constructor
      * @param swapAdapter_ Swap Adapter
+     * @param baseYieldEscrow_ Base token yield escrow
+     * @param baseYieldRecipient_ Base yield recipient
      */
-    constructor(
-        address swapAdapter_
-    ) {
+    constructor(address swapAdapter_, address baseYieldEscrow_, address baseYieldRecipient_) {
         _disableInitializers();
 
         _swapAdapter = ISwapAdapter(swapAdapter_);
         _baseToken = IERC20(_swapAdapter.baseToken());
         _scaleFactor = 10 ** (18 - IERC20Metadata(_swapAdapter.baseToken()).decimals());
+        _baseYieldEscrow = IBaseYieldEscrow(baseYieldEscrow_);
+        _baseYieldRecipient = baseYieldRecipient_;
     }
 
     /*------------------------------------------------------------------------*/
@@ -174,18 +204,33 @@ contract USDai is
         return _getSupplyStorage().cap;
     }
 
-    /*------------------------------------------------------------------------*/
-    /* Internal helpers */
-    /*------------------------------------------------------------------------*/
+    /**
+     * @inheritdoc IUSDai
+     */
+    function baseYieldAccrued() external view returns (uint256) {
+        BaseYieldAccrual memory accrual = _getBaseYieldAccrualStorage();
+
+        return accrual.accrued + _calculateAccrual(accrual);
+    }
 
     /**
      * @notice Get reference to USDai supply storage
-     *
      * @return $ Reference to supply storage
      */
     function _getSupplyStorage() internal pure returns (Supply storage $) {
         assembly {
             $.slot := SUPPLY_STORAGE_LOCATION
+        }
+    }
+
+    /**
+     * @notice Get reference to USDai base yield accrual storage
+     *
+     * @return $ Reference to base yield accrual storage
+     */
+    function _getBaseYieldAccrualStorage() internal pure returns (BaseYieldAccrual storage $) {
+        assembly {
+            $.slot := BASE_YIELD_ACCRUAL_STORAGE_LOCATION
         }
     }
 
@@ -258,6 +303,9 @@ contract USDai is
             revert SupplyCapExceeded();
         }
 
+        /* Accrue base yield */
+        _accrue();
+
         /* Mint to the recipient */
         _mint(recipient, usdaiAmount);
 
@@ -283,6 +331,9 @@ contract USDai is
         address recipient,
         bytes calldata data
     ) internal nonZeroUint(usdaiAmount) nonZeroAddress(recipient) returns (uint256) {
+        /* Accrue base yield */
+        _accrue();
+
         /* Burn USD.ai tokens */
         _burn(msg.sender, usdaiAmount);
 
@@ -307,6 +358,55 @@ contract USDai is
         emit Withdrawn(msg.sender, recipient, withdrawToken, usdaiAmount, withdrawAmount);
 
         return withdrawAmount;
+    }
+
+    /**
+     * @notice Calculate interest accrued
+     * @param accrual Base yield accrual
+     * @return Scaled accrued amount
+     */
+    function _calculateAccrual(
+        BaseYieldAccrual memory accrual
+    ) internal view returns (uint256) {
+        /* If accrual is not yet initialized, return 0 */
+        if (accrual.timestamp == 0) return 0;
+
+        /* Calculate time elapsed */
+        uint256 timeElapsed = block.timestamp - accrual.timestamp;
+
+        /* If time elapsed is 0, return 0 */
+        if (timeElapsed == 0) return 0;
+
+        /* Iterate over rate tiers */
+        uint256 principal = _scale(_baseToken.balanceOf(address(this)));
+        uint256 accrued;
+        for (uint256 i; i < accrual.rateTiers.length; i++) {
+            /* Calculate clamped scaled principal */
+            uint256 clampedPrincipal = Math.min(principal, accrual.rateTiers[i].threshold);
+
+            /* Compute clamped principal * rate * time elapsed */
+            accrued += Math.mulDiv(clampedPrincipal, accrual.rateTiers[i].rate * timeElapsed, FIXED_POINT_SCALE);
+
+            /* Update principal remaining */
+            principal -= clampedPrincipal;
+        }
+
+        return accrued;
+    }
+
+    /**
+     * @notice Accrue base yield
+     * @return Scaled accrued amount
+     */
+    function _accrue() internal returns (uint256) {
+        /* Get base yield rate */
+        BaseYieldAccrual storage accrual = _getBaseYieldAccrualStorage();
+
+        /* Update accrual */
+        accrual.accrued += _calculateAccrual(accrual);
+        accrual.timestamp = uint64(block.timestamp);
+
+        return accrual.accrued;
     }
 
     /*------------------------------------------------------------------------*/
@@ -388,6 +488,66 @@ contract USDai is
     }
 
     /*------------------------------------------------------------------------*/
+    /* Base Yield Recipient API */
+    /*------------------------------------------------------------------------*/
+
+    /**
+     * @inheritdoc IUSDai
+     */
+    function harvest() external returns (uint256) {
+        /* Validate caller is the base yield recipient */
+        if (msg.sender != _baseYieldRecipient) revert InvalidAddress();
+
+        /* Base token amount */
+        uint256 baseTokenAmount = _unscale(_accrue());
+
+        /* Set accrued base yield to zero */
+        _getBaseYieldAccrualStorage().accrued = 0;
+
+        /* Scale base token amount to USDai amount */
+        uint256 usdaiAmount = _scale(baseTokenAmount);
+
+        /* Mint USDai to base yield recipient */
+        _mint(_baseYieldRecipient, usdaiAmount);
+
+        /* Pull base token from escrow contract */
+        _baseYieldEscrow.harvest(baseTokenAmount);
+
+        /* Emit harvested event */
+        emit Harvested(usdaiAmount);
+
+        return usdaiAmount;
+    }
+
+    /*------------------------------------------------------------------------*/
+    /* Base Yield Escrow API */
+    /*------------------------------------------------------------------------*/
+
+    /**
+     * @inheritdoc IUSDai
+     */
+    function setRateTiers(
+        RateTier[] memory rateTiers
+    ) external {
+        /* Validate caller is the base yield escrow */
+        if (msg.sender != address(_baseYieldEscrow)) revert InvalidAddress();
+
+        /* Validate rate tiers */
+        for (uint256 i; i < rateTiers.length; i++) {
+            if (rateTiers[i].rate == 0 || rateTiers[i].threshold == 0) revert InvalidParameters();
+        }
+
+        /* Accrue base yield */
+        _accrue();
+
+        /* Set rate tiers */
+        _getBaseYieldAccrualStorage().rateTiers = rateTiers;
+
+        /* Emit rate tiers set event */
+        emit BaseYieldRateTiersSet(rateTiers);
+    }
+
+    /*------------------------------------------------------------------------*/
     /* Permissioned API */
     /*------------------------------------------------------------------------*/
 
@@ -401,6 +561,39 @@ contract USDai is
 
         /* Emit supply cap set event */
         emit SupplyCapSet(cap);
+    }
+
+    /**
+     * @notice Convert base token
+     * @param amount Amount
+     */
+    function convertBaseToken(
+        uint256 amount
+    ) external onlyRole(CONVERT_BASE_TOKEN_ADMIN_ROLE) {
+        /* Wrapped M token */
+        address wrappedMToken = 0x437cc33344a0B27A429f795ff6B469C72698B291;
+
+        /* Validate amount */
+        if (IERC20(wrappedMToken).balanceOf(address(this)) < amount || amount == 0) {
+            revert InvalidAmount();
+        }
+
+        /* Set initial accrual timestamp to the current timestamp */
+        if (_getBaseYieldAccrualStorage().timestamp == 0) {
+            _getBaseYieldAccrualStorage().timestamp = uint64(block.timestamp);
+        }
+
+        /* Accrue base yield */
+        _accrue();
+
+        /* Transfer token to caller */
+        IERC20(wrappedMToken).safeTransfer(msg.sender, amount);
+
+        /* Transfer base token from caller to this contract */
+        _baseToken.safeTransferFrom(msg.sender, address(this), amount);
+
+        /* Emit converted base token event */
+        emit BaseTokenConverted(msg.sender, amount);
     }
 
     /*------------------------------------------------------------------------*/

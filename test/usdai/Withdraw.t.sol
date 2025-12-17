@@ -17,14 +17,14 @@ contract USDaiWithdrawTest is BaseTest {
         usd.approve(address(usdai), amount);
 
         // User deposits amount of USD into USDai
-        uint256 mAmount = usdai.deposit(address(usd), amount, 0, users.normalUser1);
+        uint256 usdaiAmount = usdai.deposit(address(usd), amount, 0, users.normalUser1);
 
-        vm.assume(mAmount > 0);
+        vm.assume(usdaiAmount > 0);
 
-        // User withdraws mAmount of USDai back to USD
-        uint256 usdAmount = usdai.withdraw(address(usd), mAmount, 0, users.normalUser1);
+        // User withdraws usdaiAmount of USDai back to USD
+        uint256 usdAmount = usdai.withdraw(address(usd), usdaiAmount, 0, users.normalUser1);
 
-        // Assert user's USDai balance decreased by mAmount
+        // Assert user's USDai balance decreased by usdaiAmount
         assertEq(usdai.balanceOf(users.normalUser1), 0);
 
         // Assert user's USD balance increased by usdAmount less amount

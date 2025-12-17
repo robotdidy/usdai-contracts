@@ -18,10 +18,10 @@ contract USDaiDepositTest is BaseTest {
         usd.approve(address(usdai), amount);
 
         // User deposits 1000 USD into USDai
-        uint256 mAmount = usdai.deposit(address(usd), amount, 0, users.normalUser1);
+        uint256 usdaiAmount = usdai.deposit(address(usd), amount, 0, users.normalUser1);
 
-        // Assert user's USDai balance increased by mAmount
-        assertEq(usdai.balanceOf(users.normalUser1), mAmount);
+        // Assert user's USDai balance increased by usdaiAmount
+        assertEq(usdai.balanceOf(users.normalUser1), usdaiAmount);
 
         // Assert user's USD balance decreased by amount
         assertEq(usd.balanceOf(users.normalUser1), usdBalance - amount);

@@ -39,11 +39,6 @@ contract ChainlinkPriceOracle is IPriceOracle, AccessControl {
      */
     int256 internal constant USDAI_SCALING_FACTOR = int256(10 ** USDAI_DECIMALS);
 
-    /**
-     * @notice M price ceiling (8 token decimals)
-     */
-    int256 internal constant M_PRICE_CEILING = int256(10 ** 8);
-
     /*------------------------------------------------------------------------*/
     /* Errors */
     /*------------------------------------------------------------------------*/
@@ -89,19 +84,14 @@ contract ChainlinkPriceOracle is IPriceOracle, AccessControl {
     int256 internal immutable _scaleFactor;
 
     /**
-     * @notice M NAV price feed
+     * @notice PYUSD price feed
      */
-    AggregatorV3Interface internal immutable _mNavPriceFeed;
+    AggregatorV3Interface internal immutable _pyusdPriceFeed;
 
     /**
-     * @notice M decimals
+     * @notice PYUSD decimals
      */
-    uint8 internal immutable _mDecimals;
-
-    /**
-     * @notice M NAV price feed decimals
-     */
-    uint8 internal immutable _mNavDecimals;
+    uint8 internal immutable _pyusdDecimals;
 
     /*------------------------------------------------------------------------*/
     /* State */
@@ -123,30 +113,31 @@ contract ChainlinkPriceOracle is IPriceOracle, AccessControl {
 
     /**
      * @notice Chainlink Price Oracle constructor
-     * @param mNavPriceFeed_ M NAV price feed
+     * @param pyusdPriceFeed_ PYUSD price feed
      * @param tokens_ Tokens
      * @param priceFeeds_ Price feeds
+     * @param admin Default admin address
      */
-    constructor(address mNavPriceFeed_, address[] memory tokens_, address[] memory priceFeeds_) {
+    constructor(address pyusdPriceFeed_, address[] memory tokens_, address[] memory priceFeeds_, address admin) {
         /* Validate price feeds */
-        if (mNavPriceFeed_ == address(0)) {
+        if (pyusdPriceFeed_ == address(0)) {
             revert InvalidAddress();
         }
 
-        /* Set M NAV price feed */
-        _mNavPriceFeed = AggregatorV3Interface(mNavPriceFeed_);
+        /* Set PYUSD price feed */
+        _pyusdPriceFeed = AggregatorV3Interface(pyusdPriceFeed_);
 
-        /* Set M NAV price feed decimals */
-        _mNavDecimals = _mNavPriceFeed.decimals();
+        /* Set PYUSD price feed decimals */
+        _pyusdDecimals = _pyusdPriceFeed.decimals();
 
-        /* Validate M NAV price feed decimals */
-        if (_mNavDecimals != 8) revert InvalidDecimals();
+        /* Validate PYUSD price feed decimals */
+        if (_pyusdDecimals != 18) revert InvalidDecimals();
 
         /* Add token price feeds */
         _addTokenPriceFeeds(tokens_, priceFeeds_);
 
         /* Grant roles */
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(DEFAULT_ADMIN_ROLE, admin);
     }
 
     /*------------------------------------------------------------------------*/
@@ -154,11 +145,11 @@ contract ChainlinkPriceOracle is IPriceOracle, AccessControl {
     /*------------------------------------------------------------------------*/
 
     /**
-     * @notice Get address of M NAV price feed
-     * @return M NAV price feed
+     * @notice Get address of PYUSD price feed
+     * @return PYUSD price feed
      */
-    function mNavPriceFeed() external view returns (address) {
-        return address(_mNavPriceFeed);
+    function pyusdPriceFeed() external view returns (address) {
+        return address(_pyusdPriceFeed);
     }
 
     /**
@@ -171,15 +162,15 @@ contract ChainlinkPriceOracle is IPriceOracle, AccessControl {
     }
 
     /**
-     * @notice Get tokens
-     * @return Tokens
+     * @notice Get supported tokens
+     * @return Supported tokens
      */
     function supportedTokens() external view returns (address[] memory) {
         return _tokens.values();
     }
 
     /**
-     * @notice Get address of price feeds
+     * @notice Get price feed addresses
      * @return Price feeds
      */
     function priceFeeds() external view returns (TokenPriceFeed[] memory) {
@@ -274,11 +265,11 @@ contract ChainlinkPriceOracle is IPriceOracle, AccessControl {
         uint8 tokenDecimals = tokenPriceFeed.decimals();
         tokenPrice = _scalePrice(tokenPrice, tokenDecimals);
 
-        /* Get M NAV price with 10 ** _mNavDecimals as ceiling */
-        (, int256 mNavPrice,,,) = _mNavPriceFeed.latestRoundData();
-        mNavPrice = _scalePrice(mNavPrice < M_PRICE_CEILING ? mNavPrice : M_PRICE_CEILING, _mNavDecimals);
+        /* Get PYUSD price */
+        (, int256 pyusdPrice,,,) = _pyusdPriceFeed.latestRoundData();
+        pyusdPrice = _scalePrice(pyusdPrice, _pyusdDecimals);
 
-        return (tokenPrice * USDAI_SCALING_FACTOR) / mNavPrice;
+        return (tokenPrice * USDAI_SCALING_FACTOR) / pyusdPrice;
     }
 
     /**
@@ -304,7 +295,7 @@ contract ChainlinkPriceOracle is IPriceOracle, AccessControl {
         /* Validate token is supported */
         if (!supportedToken(token_)) revert UnsupportedToken(token_);
 
-        /* Get price of token in terms of M token */
+        /* Get price of token in terms of PYUSD token */
         int256 price_ = _getDerivedPrice(token_);
 
         /* Validate price is non-zero and non-negative */

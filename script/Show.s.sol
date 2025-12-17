@@ -19,6 +19,7 @@ contract Show is Deployer {
         console.log("StakedUSDai:           %s", _deployment.stakedUSDai);
         console.log("SwapAdapter:           %s", _deployment.swapAdapter);
         console.log("PriceOracle:           %s", _deployment.priceOracle);
+        console.log("BaseYieldEscrow:       %s", _deployment.baseYieldEscrow);
         console.log("");
         console.log("OAdapterUSDai:         %s", _deployment.oAdapterUSDai);
         console.log("OAdapterStakedUSDai:   %s", _deployment.oAdapterStakedUSDai);

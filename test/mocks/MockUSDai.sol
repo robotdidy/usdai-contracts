@@ -39,6 +39,18 @@ contract MockUSDai is
     bytes32 internal constant BRIDGE_ADMIN_ROLE = keccak256("BRIDGE_ADMIN_ROLE");
 
     /**
+     * @notice Base yield recipient role
+     */
+    bytes32 internal constant BASE_YIELD_RECIPIENT_ROLE = keccak256("BASE_YIELD_RECIPIENT_ROLE");
+
+    /**
+     * @notice Base yield accrual storage location
+     * @dev keccak256(abi.encode(uint256(keccak256("USDai.baseYieldAccrual")) - 1)) & ~bytes32(uint256(0xff));
+     */
+    bytes32 private constant BASE_YIELD_ACCRUAL_STORAGE_LOCATION =
+        0xad76c5b481cb106971e0ae4c23a09cb5b1dc9dba5fad96d9694630df5e853900;
+
+    /**
      * @notice Supply cap
      * @dev keccak256(abi.encode(uint256(keccak256("USDai.supply")) - 1)) & ~bytes32(uint256(0xff));
      */
@@ -148,6 +160,13 @@ contract MockUSDai is
         return _getSupplyStorage().cap;
     }
 
+    /**
+     * @inheritdoc IUSDai
+     */
+    function baseYieldAccrued() public view returns (uint256) {
+        return _getBaseYieldAccrualStorage().accrued;
+    }
+
     /*------------------------------------------------------------------------*/
     /* Internal helpers */
     /*------------------------------------------------------------------------*/
@@ -160,6 +179,17 @@ contract MockUSDai is
     function _getSupplyStorage() internal pure returns (Supply storage $) {
         assembly {
             $.slot := SUPPLY_STORAGE_LOCATION
+        }
+    }
+
+    /**
+     * @notice Get reference to USDai base yield accrual storage
+     *
+     * @return $ Reference to base yield accrual storage
+     */
+    function _getBaseYieldAccrualStorage() internal pure returns (BaseYieldAccrual storage $) {
+        assembly {
+            $.slot := BASE_YIELD_ACCRUAL_STORAGE_LOCATION
         }
     }
 
@@ -314,6 +344,39 @@ contract MockUSDai is
     }
 
     /*------------------------------------------------------------------------*/
+    /* Base Yield Recipient API */
+    /*------------------------------------------------------------------------*/
+
+    /**
+     * @inheritdoc IUSDai
+     */
+    function harvest() external onlyRole(BASE_YIELD_RECIPIENT_ROLE) returns (uint256) {
+        _getBaseYieldAccrualStorage().accrued = 0;
+
+        /* Emit harvested event */
+        emit Harvested(0);
+
+        return 0;
+    }
+
+    /*------------------------------------------------------------------------*/
+    /* Base Escrow API */
+    /*------------------------------------------------------------------------*/
+
+    /**
+     * @inheritdoc IUSDai
+     */
+    function setRateTiers(
+        RateTier[] memory rateTiers
+    ) external {
+        /* Set rate tiers */
+        _getBaseYieldAccrualStorage().rateTiers = rateTiers;
+
+        /* Emit rate tiers set event */
+        emit BaseYieldRateTiersSet(rateTiers);
+    }
+
+    /*------------------------------------------------------------------------*/
     /* Permissioned API */
     /*------------------------------------------------------------------------*/
 
@@ -328,6 +391,17 @@ contract MockUSDai is
 
         /* Emit supply cap set event */
         emit SupplyCapSet(cap);
+    }
+
+    /**
+     * @notice Convert base token
+     * @param amount Amount
+     */
+    function convertBaseToken(
+        uint256 amount
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        /* Emit base token converted event */
+        emit BaseTokenConverted(msg.sender, amount);
     }
 
     /*------------------------------------------------------------------------*/

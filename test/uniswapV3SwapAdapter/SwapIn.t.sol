@@ -21,12 +21,12 @@ contract SwapAdapterSwapInTest is BaseTest {
         vm.prank(address(usdai));
         usd.approve(address(uniswapV3SwapAdapter), amount);
 
-        // USDai swaps in 100 USD for wrapped M
+        // USDai swaps in 100 USD for pyusd
         vm.prank(address(usdai));
-        uint256 mAmount = uniswapV3SwapAdapter.swapIn(address(usd), amount, 0, "");
+        uint256 pyusdAmount = uniswapV3SwapAdapter.swapIn(address(usd), amount, 0, "");
 
-        // Assert USDai's wrapped M balance increased by mAmount
-        assertEq(WRAPPED_M_TOKEN.balanceOf(address(usdai)), mAmount);
+        // Assert USDai's pyusd balance increased by pyusdAmount
+        assertEq(PYUSD.balanceOf(address(usdai)), pyusdAmount);
 
         // Assert USDai's USD balance decreased by 100
         assertEq(usd.balanceOf(address(usdai)), 0);
@@ -59,7 +59,7 @@ contract SwapAdapterSwapInTest is BaseTest {
         vm.prank(address(usdai));
         usd.approve(address(uniswapV3SwapAdapter), amount);
 
-        // USDai swaps in 100 USD for wrapped M
+        // USDai swaps in 100 USD for pyusd
         vm.prank(address(usdai));
         vm.expectRevert();
         uniswapV3SwapAdapter.swapIn(address(usd), amount, amount, "");
@@ -86,24 +86,24 @@ contract SwapAdapterSwapInTest is BaseTest {
         vm.prank(address(usdai));
         usd2.approve(address(uniswapV3SwapAdapter), amount);
 
-        // Encode path for USD2 -> USD -> wrapped M
+        // Encode path for USD2 -> USD -> pyusd
         bytes memory path = abi.encodePacked(
             address(usd2),
             uint24(100), // 0.01% fee
             address(usd),
             uint24(100), // 0.01% fee
-            address(WRAPPED_M_TOKEN)
+            address(PYUSD)
         );
 
-        // USDai swaps in USD2 for wrapped M via USD
+        // USDai swaps in USD2 for pyusd via USD
         vm.prank(address(usdai));
-        uint256 mAmount = uniswapV3SwapAdapter.swapIn(address(usd2), amount, 0, path);
+        uint256 pyusdAmount = uniswapV3SwapAdapter.swapIn(address(usd2), amount, 0, path);
 
-        // Assert mAmount is greater than 0
-        assertGt(mAmount, 0);
+        // Assert pyusdAmount is greater than 0
+        assertGt(pyusdAmount, 0);
 
-        // Assert USDai's wrapped M balance increased by mAmount
-        assertEq(WRAPPED_M_TOKEN.balanceOf(address(usdai)), mAmount);
+        // Assert USDai's pyusd balance increased by pyusdAmount
+        assertEq(PYUSD.balanceOf(address(usdai)), pyusdAmount);
 
         // Assert USDai's USD2 balance decreased by amount
         assertEq(usd2.balanceOf(address(usdai)), 0);

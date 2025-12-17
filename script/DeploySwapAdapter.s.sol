@@ -11,12 +11,12 @@ import {Deployer} from "./utils/Deployer.s.sol";
 
 contract DeploySwapAdapter is Deployer {
     function run(
-        address wrappedMToken,
+        address baseToken,
         address swapRouter,
         address[] memory tokens
     ) public broadcast useDeployment returns (address) {
         // Deploy UniswapV3SwapAdapter
-        UniswapV3SwapAdapter swapAdapter = new UniswapV3SwapAdapter(wrappedMToken, swapRouter, tokens);
+        UniswapV3SwapAdapter swapAdapter = new UniswapV3SwapAdapter(baseToken, swapRouter, tokens);
         console.log("UniswapV3SwapAdapter", address(swapAdapter));
 
         // Grant role to USDAI

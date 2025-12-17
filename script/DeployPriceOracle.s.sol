@@ -9,12 +9,13 @@ import {Deployer} from "./utils/Deployer.s.sol";
 
 contract DeployPriceOracle is Deployer {
     function run(
-        address mNavPriceFeed,
+        address baseTokenPriceFeed,
         address[] memory tokens,
-        address[] memory priceFeeds
+        address[] memory priceFeeds,
+        address admin
     ) public broadcast useDeployment returns (address) {
         // Deploy ChainlinkPriceOracle
-        ChainlinkPriceOracle priceOracle = new ChainlinkPriceOracle(mNavPriceFeed, tokens, priceFeeds);
+        ChainlinkPriceOracle priceOracle = new ChainlinkPriceOracle(baseTokenPriceFeed, tokens, priceFeeds, admin);
         console.log("ChainlinkPriceOracle", address(priceOracle));
 
         // Log deployment
