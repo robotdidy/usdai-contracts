@@ -17,6 +17,8 @@ import "./interfaces/ISwapAdapter.sol";
 import "./interfaces/IMintableBurnable.sol";
 import "./interfaces/IBaseYieldEscrow.sol";
 
+import "./interfaces/external/IBlacklist.sol";
+
 /**
  * @title USDai ERC20
  * @author MetaStreet Foundation
@@ -58,6 +60,11 @@ contract USDai is
     bytes32 internal constant CONVERT_BASE_TOKEN_ADMIN_ROLE = keccak256("CONVERT_BASE_TOKEN_ADMIN_ROLE");
 
     /**
+     * @notice Blacklist admin role
+     */
+    bytes32 internal constant BLACKLIST_ADMIN_ROLE = keccak256("BLACKLIST_ADMIN_ROLE");
+
+    /**
      * @notice Supply storage location
      * @dev keccak256(abi.encode(uint256(keccak256("USDai.supply")) - 1)) & ~bytes32(uint256(0xff));
      */
@@ -70,6 +77,13 @@ contract USDai is
      */
     bytes32 private constant BASE_YIELD_ACCRUAL_STORAGE_LOCATION =
         0xad76c5b481cb106971e0ae4c23a09cb5b1dc9dba5fad96d9694630df5e853900;
+
+    /**
+     * @notice Blacklist storage location
+     * @dev keccak256(abi.encode(uint256(keccak256("USDai.blacklist")) - 1)) & ~bytes32(uint256(0xff));
+     */
+    bytes32 private constant BLACKLIST_STORAGE_LOCATION =
+        0xd21f45001ca28b8905ef527bd860800b2646ce7faf578b00aa2e89af23551500;
 
     /**
      * @notice Fixed point scale
@@ -172,6 +186,19 @@ contract USDai is
         _;
     }
 
+    /**
+     * @notice Not blacklisted modifier
+     * @param value Value to check
+     */
+    modifier notBlacklisted(
+        address value
+    ) {
+        if (isBlacklisted(value)) {
+            revert BlacklistedAddress(value);
+        }
+        _;
+    }
+
     /*------------------------------------------------------------------------*/
     /* Getters  */
     /*------------------------------------------------------------------------*/
@@ -214,6 +241,33 @@ contract USDai is
     }
 
     /**
+     * @inheritdoc IUSDai
+     */
+    function isBlacklisted(
+        address account
+    ) public view returns (bool) {
+        /* Check local blacklist */
+        if (_getBlacklistStorage().blacklist[account]) return true;
+
+        /* If not on Arbitrum, skip remaining checks */
+        if (block.chainid != 42161) return false;
+
+        /* Exclude Staked USDai and OUSDaiUtility */
+        if (
+            account == 0x0B2b2B2076d95dda7817e785989fE353fe955ef9
+                || account == 0x24a92E28a8C5D8812DcfAf44bCb20CC0BaBd1392
+        ) return false;
+
+        /* Check USDC and USDT blacklists */
+        return IBlacklist(0xaf88d065e77c8cC2239327C5EDb3A432268e5831).isBlacklisted(account)
+            || IBlacklist(0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9).isBlocked(account);
+    }
+
+    /*------------------------------------------------------------------------*/
+    /* Internal helpers */
+    /*------------------------------------------------------------------------*/
+
+    /**
      * @notice Get reference to USDai supply storage
      * @return $ Reference to supply storage
      */
@@ -231,6 +285,17 @@ contract USDai is
     function _getBaseYieldAccrualStorage() internal pure returns (BaseYieldAccrual storage $) {
         assembly {
             $.slot := BASE_YIELD_ACCRUAL_STORAGE_LOCATION
+        }
+    }
+
+    /**
+     * @notice Get reference to USDai blacklist storage
+     *
+     * @return $ Reference to blacklist storage
+     */
+    function _getBlacklistStorage() internal pure returns (Blacklist storage $) {
+        assembly {
+            $.slot := BLACKLIST_STORAGE_LOCATION
         }
     }
 
@@ -410,6 +475,21 @@ contract USDai is
     }
 
     /*------------------------------------------------------------------------*/
+    /* ERC20Upgradeable overrides */
+    /*------------------------------------------------------------------------*/
+
+    /**
+     * @inheritdoc ERC20Upgradeable
+     */
+    function _update(
+        address from,
+        address to,
+        uint256 value
+    ) internal override notBlacklisted(msg.sender) notBlacklisted(from) notBlacklisted(to) {
+        super._update(from, to, value);
+    }
+
+    /*------------------------------------------------------------------------*/
     /* Public API */
     /*------------------------------------------------------------------------*/
 
@@ -561,6 +641,16 @@ contract USDai is
 
         /* Emit supply cap set event */
         emit SupplyCapSet(cap);
+    }
+
+    /**
+     * @inheritdoc IUSDai
+     */
+    function setBlacklist(address account, bool blacklisted) external onlyRole(BLACKLIST_ADMIN_ROLE) {
+        _getBlacklistStorage().blacklist[account] = blacklisted;
+
+        /* Emit blacklist updated event */
+        emit BlacklistUpdated(account, blacklisted);
     }
 
     /**

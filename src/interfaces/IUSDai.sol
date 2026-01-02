@@ -33,6 +33,12 @@ interface IUSDai is IERC20 {
     error InvalidDecimals();
 
     /**
+     * @notice Blacklisted address
+     * @param value Blacklisted address
+     */
+    error BlacklistedAddress(address value);
+
+    /**
      * @notice Invalid parameters
      */
     error InvalidParameters();
@@ -64,6 +70,13 @@ interface IUSDai is IERC20 {
         RateTier[] rateTiers;
         uint256 accrued;
         uint64 timestamp;
+    }
+
+    /**
+     * @custom:storage-location erc7201:USDai.blacklist
+     */
+    struct Blacklist {
+        mapping(address => bool) blacklist;
     }
 
     /*------------------------------------------------------------------------*/
@@ -114,6 +127,13 @@ interface IUSDai is IERC20 {
      * @param usdaiAmount USDai amount
      */
     event Harvested(uint256 usdaiAmount);
+
+    /**
+     * @notice Blacklist updated event
+     * @param account Account
+     * @param isBlacklisted Is blacklisted
+     */
+    event BlacklistUpdated(address indexed account, bool isBlacklisted);
 
     /**
      * @notice Supply cap set
@@ -167,6 +187,15 @@ interface IUSDai is IERC20 {
      * @return Base yield accrued
      */
     function baseYieldAccrued() external view returns (uint256);
+
+    /**
+     * @notice Check if an address is blacklisted
+     * @param account Account
+     * @return Is blacklisted
+     */
+    function isBlacklisted(
+        address account
+    ) external view returns (bool);
 
     /*------------------------------------------------------------------------*/
     /* Public API */
@@ -246,6 +275,17 @@ interface IUSDai is IERC20 {
      *
      */
     function harvest() external returns (uint256);
+
+    /*------------------------------------------------------------------------*/
+    /* Blacklist Admin API */
+    /*------------------------------------------------------------------------*/
+
+    /**
+     * @notice Set blacklist
+     * @param account Account
+     * @param isBlacklisted Is blacklisted
+     */
+    function setBlacklist(address account, bool isBlacklisted) external;
 
     /*------------------------------------------------------------------------*/
     /* Permissioned API */

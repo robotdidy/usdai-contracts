@@ -312,6 +312,9 @@ abstract contract BaseTest is Test {
         /* Grant USDai role to Uniswap V3 swap adapter */
         uniswapV3SwapAdapter.grantRole(keccak256("USDAI_ROLE"), address(usdai));
 
+        /* Grant blacklist admin role to deployer */
+        AccessControl(address(usdai)).grantRole(keccak256("BLACKLIST_ADMIN_ROLE"), address(users.deployer));
+
         vm.stopPrank();
 
         vm.prank(users.admin);

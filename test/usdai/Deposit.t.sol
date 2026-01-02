@@ -50,4 +50,15 @@ contract USDaiDepositTest is BaseTest {
 
         vm.stopPrank();
     }
+
+    function test__USDaiDepositBlacklistedAddress() public {
+        vm.startPrank(users.deployer);
+        usdai.setBlacklist(users.normalUser1, true);
+        vm.stopPrank();
+
+        vm.startPrank(users.normalUser1);
+        vm.expectRevert(abi.encodeWithSelector(IUSDai.BlacklistedAddress.selector, users.normalUser1));
+        usdai.deposit(address(usd), 100 ether, 0, users.normalUser1);
+        vm.stopPrank();
+    }
 }

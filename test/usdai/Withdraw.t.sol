@@ -3,6 +3,8 @@ pragma solidity 0.8.29;
 
 import {BaseTest} from "../Base.t.sol";
 
+import {IUSDai} from "../../src/interfaces/IUSDai.sol";
+
 contract USDaiWithdrawTest is BaseTest {
     function testFuzz__USDaiWithdraw(
         uint256 amount
@@ -30,6 +32,17 @@ contract USDaiWithdrawTest is BaseTest {
         // Assert user's USD balance increased by usdAmount less amount
         assertEq(usd.balanceOf(users.normalUser1), usdBalance - amount + usdAmount);
 
+        vm.stopPrank();
+    }
+
+    function test__USDaiWithdrawBlacklistedAddress() public {
+        vm.startPrank(users.deployer);
+        usdai.setBlacklist(users.normalUser1, true);
+        vm.stopPrank();
+
+        vm.startPrank(users.normalUser1);
+        vm.expectRevert(abi.encodeWithSelector(IUSDai.BlacklistedAddress.selector, users.normalUser1));
+        usdai.withdraw(address(usd), 100 ether, 0, users.normalUser1);
         vm.stopPrank();
     }
 }

@@ -44,6 +44,11 @@ contract MockUSDai is
     bytes32 internal constant BASE_YIELD_RECIPIENT_ROLE = keccak256("BASE_YIELD_RECIPIENT_ROLE");
 
     /**
+     * @notice Blacklist admin role
+     */
+    bytes32 internal constant BLACKLIST_ADMIN_ROLE = keccak256("BLACKLIST_ADMIN_ROLE");
+
+    /**
      * @notice Base yield accrual storage location
      * @dev keccak256(abi.encode(uint256(keccak256("USDai.baseYieldAccrual")) - 1)) & ~bytes32(uint256(0xff));
      */
@@ -56,6 +61,13 @@ contract MockUSDai is
      */
     bytes32 private constant SUPPLY_STORAGE_LOCATION =
         0x5fc387bd350b82c09f22bee4c04d61669980ce519c352560e36bc6144f9cf800;
+
+    /**
+     * @notice Blacklist storage location
+     * @dev keccak256(abi.encode(uint256(keccak256("USDai.blacklist")) - 1)) & ~bytes32(uint256(0xff));
+     */
+    bytes32 private constant BLACKLIST_STORAGE_LOCATION =
+        0xd21f45001ca28b8905ef527bd860800b2646ce7faf578b00aa2e89af23551500;
 
     /*------------------------------------------------------------------------*/
     /* Constructor */
@@ -109,6 +121,19 @@ contract MockUSDai is
         address value
     ) {
         if (value == address(0)) revert InvalidAddress();
+        _;
+    }
+
+    /**
+     * @notice Not blacklisted modifier
+     * @param value Value to check
+     */
+    modifier notBlacklisted(
+        address value
+    ) {
+        if (_getBlacklistStorage().blacklist[value]) {
+            revert BlacklistedAddress(value);
+        }
         _;
     }
 
@@ -167,6 +192,15 @@ contract MockUSDai is
         return _getBaseYieldAccrualStorage().accrued;
     }
 
+    /**
+     * @inheritdoc IUSDai
+     */
+    function isBlacklisted(
+        address account
+    ) external view returns (bool) {
+        return _getBlacklistStorage().blacklist[account];
+    }
+
     /*------------------------------------------------------------------------*/
     /* Internal helpers */
     /*------------------------------------------------------------------------*/
@@ -190,6 +224,17 @@ contract MockUSDai is
     function _getBaseYieldAccrualStorage() internal pure returns (BaseYieldAccrual storage $) {
         assembly {
             $.slot := BASE_YIELD_ACCRUAL_STORAGE_LOCATION
+        }
+    }
+
+    /**
+     * @notice Get reference to USDai blacklist storage
+     *
+     * @return $ Reference to blacklist storage
+     */
+    function _getBlacklistStorage() internal pure returns (Blacklist storage $) {
+        assembly {
+            $.slot := BLACKLIST_STORAGE_LOCATION
         }
     }
 
@@ -263,6 +308,21 @@ contract MockUSDai is
         emit Withdrawn(msg.sender, recipient, withdrawToken, usdaiAmount, withdrawAmountMinimum);
 
         return withdrawAmountMinimum;
+    }
+
+    /*------------------------------------------------------------------------*/
+    /* ERC20Upgradeable overrides */
+    /*------------------------------------------------------------------------*/
+
+    /**
+     * @inheritdoc ERC20Upgradeable
+     */
+    function _update(
+        address from,
+        address to,
+        uint256 value
+    ) internal override notBlacklisted(msg.sender) notBlacklisted(from) notBlacklisted(to) {
+        super._update(from, to, value);
     }
 
     /*------------------------------------------------------------------------*/
@@ -357,6 +417,19 @@ contract MockUSDai is
         emit Harvested(0);
 
         return 0;
+    }
+
+    /*------------------------------------------------------------------------*/
+    /* Blacklist Admin API */
+    /*------------------------------------------------------------------------*/
+
+    /**
+     * @inheritdoc IUSDai
+     */
+    function setBlacklist(address account, bool isBlacklisted) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _getBlacklistStorage().blacklist[account] = isBlacklisted;
+
+        emit BlacklistUpdated(account, isBlacklisted);
     }
 
     /*------------------------------------------------------------------------*/
