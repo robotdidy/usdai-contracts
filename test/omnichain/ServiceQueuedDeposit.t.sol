@@ -304,22 +304,13 @@ contract USDaiServiceQueuedDepositTest is OmnichainBaseTest {
         vm.startPrank(user);
         usdtHomeToken.approve(address(oUsdaiUtility), amount * 2);
 
-        bytes memory data1 = abi.encode(IUSDaiQueuedDepositor.QueueType.Deposit, user, 0);
-        bytes memory data2 = abi.encode(IUSDaiQueuedDepositor.QueueType.Deposit, blacklistedUser, 0);
+        bytes memory data = abi.encode(IUSDaiQueuedDepositor.QueueType.Deposit, blacklistedUser, 0);
 
         // Deposit the USD
-        oUsdaiUtility.localCompose(IOUSDaiUtility.ActionType.QueuedDeposit, address(usdtHomeToken), amount, data1);
-        oUsdaiUtility.localCompose(IOUSDaiUtility.ActionType.QueuedDeposit, address(usdtHomeToken), amount, data2);
+        vm.expectRevert(IOUSDaiUtility.QueuedDepositFailed.selector);
+        oUsdaiUtility.localCompose(IOUSDaiUtility.ActionType.QueuedDeposit, address(usdtHomeToken), amount, data);
 
         vm.stopPrank();
-
-        usdaiQueuedDepositor.service(
-            IUSDaiQueuedDepositor.QueueType.Deposit,
-            abi.encode(IUSDaiQueuedDepositor.SwapType.Default, abi.encode(address(usdtHomeToken), 1, 0, 0, ""))
-        );
-
-        assertEq(usdai.balanceOf(user), 1_000_000 ether);
-        assertEq(usdai.balanceOf(blacklistedUser), 0);
     }
 
     function test__USDaiServiceQueuedLocalDepositAndStake() public {

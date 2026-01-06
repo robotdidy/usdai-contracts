@@ -133,6 +133,26 @@ contract OUSDaiUtility is ILayerZeroComposer, ReentrancyGuardUpgradeable, Access
     /*------------------------------------------------------------------------*/
 
     /**
+     * @notice Refund
+     * @param token Token
+     * @param to Recipient address
+     * @param amount Amount
+     * @param action Action
+     * @param reason Reason
+     */
+    function _refund(IERC20 token, address to, uint256 amount, string memory action, bytes memory reason) internal {
+        /* Transfer the token to the recipient */
+        token.transfer(to, amount);
+
+        /* Refund the msg.value */
+        (bool success,) = payable(to).call{value: msg.value}("");
+        success;
+
+        /* Emit the failed action event */
+        emit ActionFailed(action, reason);
+    }
+
+    /**
      * @notice Deposit USDai
      * @dev sendParam.to must be an accessible account to receive tokens in the case of action failure
      * @param depositToken Deposit token
@@ -146,6 +166,13 @@ contract OUSDaiUtility is ILayerZeroComposer, ReentrancyGuardUpgradeable, Access
 
         /* Get the destination address */
         address to = address(uint160(uint256(sendParam.to)));
+
+        /* Validate the recipient is not blacklisted */
+        if (_usdai.isBlacklisted(to)) {
+            _refund(IERC20(depositToken), to, depositAmount, "Deposit", "Blacklisted recipient");
+
+            return false;
+        }
 
         /* Approve the USDai contract to spend the deposit token */
         IERC20(depositToken).forceApprove(address(_usdai), depositAmount);
@@ -181,15 +208,7 @@ contract OUSDaiUtility is ILayerZeroComposer, ReentrancyGuardUpgradeable, Access
                 }
             }
         } catch (bytes memory reason) {
-            /* Transfer the deposit token to owner */
-            IERC20(depositToken).transfer(to, depositAmount);
-
-            /* Refund the msg.value */
-            (bool success,) = payable(to).call{value: msg.value}("");
-            success;
-
-            /* Emit the failed action event */
-            emit ActionFailed("Deposit", reason);
+            _refund(IERC20(depositToken), to, depositAmount, "Deposit", reason);
 
             return false;
         }
@@ -217,6 +236,13 @@ contract OUSDaiUtility is ILayerZeroComposer, ReentrancyGuardUpgradeable, Access
 
         /* Get the destination address */
         address to = address(uint160(uint256(sendParam.to)));
+
+        /* Validate the recipient is not blacklisted */
+        if (_usdai.isBlacklisted(to)) {
+            _refund(IERC20(depositToken), to, depositAmount, "DepositAndStake", "Blacklisted recipient");
+
+            return false;
+        }
 
         /* Approve the USDai contract to spend the deposit token */
         IERC20(depositToken).forceApprove(address(_usdai), depositAmount);
@@ -260,28 +286,12 @@ contract OUSDaiUtility is ILayerZeroComposer, ReentrancyGuardUpgradeable, Access
                     }
                 }
             } catch (bytes memory reason) {
-                /* Transfer the usdai token to owner */
-                _usdai.transfer(to, usdaiAmount);
-
-                /* Refund the msg.value */
-                (bool success,) = payable(to).call{value: msg.value}("");
-                success;
-
-                /* Emit the failed action event */
-                emit ActionFailed("Stake", reason);
+                _refund(_usdai, to, usdaiAmount, "Stake", reason);
 
                 return false;
             }
         } catch (bytes memory reason) {
-            /* Transfer the deposit token to owner */
-            IERC20(depositToken).transfer(to, depositAmount);
-
-            /* Refund the msg.value */
-            (bool success,) = payable(to).call{value: msg.value}("");
-            success;
-
-            /* Emit the failed action event */
-            emit ActionFailed("Deposit", reason);
+            _refund(IERC20(depositToken), to, depositAmount, "Deposit", reason);
 
             return false;
         }
@@ -307,6 +317,13 @@ contract OUSDaiUtility is ILayerZeroComposer, ReentrancyGuardUpgradeable, Access
         (IUSDaiQueuedDepositor.QueueType queueType, address recipient, uint32 dstEid) =
             abi.decode(data, (IUSDaiQueuedDepositor.QueueType, address, uint32));
 
+        /* Validate the recipient is not blacklisted */
+        if (_usdai.isBlacklisted(recipient)) {
+            _refund(IERC20(depositToken), recipient, depositAmount, "QueuedDeposit", "Blacklisted recipient");
+
+            return false;
+        }
+
         /* Approve the queued depositor contract to spend the deposit token */
         IERC20(depositToken).forceApprove(address(_usdaiQueuedDepositor), depositAmount);
 
@@ -315,11 +332,7 @@ contract OUSDaiUtility is ILayerZeroComposer, ReentrancyGuardUpgradeable, Access
             /* Emit the queued deposit event */
             emit ComposerQueuedDeposit(queueType, depositToken, recipient, depositAmount);
         } catch (bytes memory reason) {
-            /* Transfer the deposit token to owner */
-            IERC20(depositToken).transfer(recipient, depositAmount);
-
-            /* Emit the failed action event */
-            emit ActionFailed("QueuedDeposit", reason);
+            _refund(IERC20(depositToken), recipient, depositAmount, "QueuedDeposit", reason);
 
             return false;
         }
@@ -344,15 +357,11 @@ contract OUSDaiUtility is ILayerZeroComposer, ReentrancyGuardUpgradeable, Access
 
         /* Validate the deposit token is USDai */
         if (depositToken != address(_usdai)) {
-            /* Transfer the deposit token to owner */
-            IERC20(depositToken).transfer(to, depositAmount);
+            _refund(IERC20(depositToken), to, depositAmount, "Stake", "Invalid deposit token");
 
-            /* Refund the msg.value */
-            (bool success,) = payable(to).call{value: msg.value}("");
-            success;
-
-            /* Emit the failed action event */
-            emit ActionFailed("Stake", "Invalid deposit token");
+            return false;
+        } else if (_usdai.isBlacklisted(to)) {
+            _refund(IERC20(depositToken), to, depositAmount, "Stake", "Blacklisted recipient");
 
             return false;
         }
@@ -389,15 +398,7 @@ contract OUSDaiUtility is ILayerZeroComposer, ReentrancyGuardUpgradeable, Access
                 }
             }
         } catch (bytes memory reason) {
-            /* Transfer the usdai token to owner */
-            _usdai.transfer(to, depositAmount);
-
-            /* Refund the msg.value */
-            (bool success,) = payable(to).call{value: msg.value}("");
-            success;
-
-            /* Emit the failed action event */
-            emit ActionFailed("Stake", reason);
+            _refund(IERC20(depositToken), to, depositAmount, "Stake", reason);
 
             return false;
         }
