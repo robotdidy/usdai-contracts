@@ -149,19 +149,6 @@ contract StakedUSDai is
         _;
     }
 
-    /**
-     * @notice Not blacklisted modifier
-     * @param value Value to check
-     */
-    modifier notBlacklisted(
-        address value
-    ) {
-        if (_getBlacklistStorage().blacklist[value]) {
-            revert BlacklistedAddress(value);
-        }
-        _;
-    }
-
     /*------------------------------------------------------------------------*/
     /* Getters  */
     /*------------------------------------------------------------------------*/
@@ -348,6 +335,16 @@ contract StakedUSDai is
         if (totalSupply() < LOCKED_SHARES) _mint(address(0xdead), LOCKED_SHARES);
     }
 
+    /**
+     * @notice Check if address is blacklisted
+     * @param account Address to check
+     */
+    function _isBlacklisted(
+        address account
+    ) internal view {
+        if (_usdai.isBlacklisted(account)) revert BlacklistedAddress(account);
+    }
+
     /*------------------------------------------------------------------------*/
     /* ERC20Upgradeable overrides */
     /*------------------------------------------------------------------------*/
@@ -355,11 +352,11 @@ contract StakedUSDai is
     /**
      * @inheritdoc ERC20Upgradeable
      */
-    function _update(
-        address from,
-        address to,
-        uint256 value
-    ) internal override notBlacklisted(msg.sender) notBlacklisted(from) notBlacklisted(to) {
+    function _update(address from, address to, uint256 value) internal override {
+        _isBlacklisted(msg.sender);
+        _isBlacklisted(from);
+        _isBlacklisted(to);
+
         super._update(from, to, value);
     }
 
@@ -510,15 +507,15 @@ contract StakedUSDai is
     )
         external
         whenNotPaused
-        notBlacklisted(msg.sender)
-        notBlacklisted(controller)
-        notBlacklisted(receiver)
         nonReentrant
         nonZeroUint(amount)
         nonZeroAddress(receiver)
         nonZeroAddress(controller)
         returns (uint256)
     {
+        /* Validate controller is not blacklisted */
+        _isBlacklisted(controller);
+
         /* Validate caller */
         if (controller != msg.sender && !_getIsOperatorStorage().isOperator[controller][msg.sender]) {
             revert InvalidCaller();
@@ -549,15 +546,15 @@ contract StakedUSDai is
     )
         external
         whenNotPaused
-        notBlacklisted(msg.sender)
-        notBlacklisted(controller)
-        notBlacklisted(receiver)
         nonReentrant
         nonZeroUint(shares)
         nonZeroAddress(receiver)
         nonZeroAddress(controller)
         returns (uint256)
     {
+        /* Validate controller is not blacklisted */
+        _isBlacklisted(controller);
+
         /* Validate caller */
         if (controller != msg.sender && !_getIsOperatorStorage().isOperator[controller][msg.sender]) {
             revert InvalidCaller();
@@ -613,7 +610,10 @@ contract StakedUSDai is
     function setOperator(
         address operator,
         bool approved
-    ) external whenNotPaused notBlacklisted(msg.sender) nonReentrant nonZeroAddress(operator) returns (bool) {
+    ) external whenNotPaused nonReentrant nonZeroAddress(operator) returns (bool) {
+        /* Validate address is not blacklisted */
+        _isBlacklisted(msg.sender);
+
         /* Validate caller */
         if (msg.sender == operator) revert InvalidAddress();
 
@@ -666,13 +666,15 @@ contract StakedUSDai is
     )
         external
         whenNotPaused
-        notBlacklisted(controller)
         nonReentrant
         nonZeroUint(shares)
         nonZeroAddress(controller)
         nonZeroAddress(owner)
         returns (uint256)
     {
+        /* Validate address is not blacklisted */
+        _isBlacklisted(controller);
+
         /* Validate caller */
         if (owner != msg.sender && !_getIsOperatorStorage().isOperator[owner][msg.sender]) revert InvalidCaller();
 
@@ -702,20 +704,6 @@ contract StakedUSDai is
      */
     function share() external view returns (address) {
         return address(this);
-    }
-
-    /*------------------------------------------------------------------------*/
-    /* Blacklister API */
-    /*------------------------------------------------------------------------*/
-
-    /**
-     * @inheritdoc IStakedUSDai
-     */
-    function setBlacklist(address account, bool isBlacklisted) external onlyRole(BLACKLIST_ADMIN_ROLE) {
-        _getBlacklistStorage().blacklist[account] = isBlacklisted;
-
-        /* Emit Blacklisted */
-        emit Blacklisted(account, isBlacklisted);
     }
 
     /*------------------------------------------------------------------------*/

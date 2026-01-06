@@ -130,7 +130,7 @@ contract MockStakedUSDai is
     modifier notBlacklisted(
         address value
     ) {
-        if (_getBlacklistStorage().blacklist[value]) {
+        if (_usdai.isBlacklisted(value)) {
             revert BlacklistedAddress(value);
         }
         _;
@@ -675,20 +675,6 @@ contract MockStakedUSDai is
         emit RedeemRequest(controller, owner, redemptionId, msg.sender, shares);
 
         return redemptionId;
-    }
-
-    /*------------------------------------------------------------------------*/
-    /* Blacklister API */
-    /*------------------------------------------------------------------------*/
-
-    /**
-     * @inheritdoc IStakedUSDai
-     */
-    function setBlacklist(address account, bool isBlacklisted) external onlyRole(BLACKLIST_ADMIN_ROLE) {
-        _getBlacklistStorage().blacklist[account] = isBlacklisted;
-
-        /* Emit Blacklisted */
-        emit Blacklisted(account, isBlacklisted);
     }
 
     /*------------------------------------------------------------------------*/

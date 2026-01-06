@@ -349,6 +349,6 @@ abstract contract OmnichainBaseTest is TestHelperOz5 {
 
         // Set user as blacklisted
         AccessControl(address(stakedUsdai)).grantRole(keccak256("BLACKLIST_ADMIN_ROLE"), address(this));
-        stakedUsdai.setBlacklist(blacklistedUser, true);
+        usdai.setBlacklist(blacklistedUser, true);
     }
 }

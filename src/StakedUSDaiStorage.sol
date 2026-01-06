@@ -64,13 +64,6 @@ abstract contract StakedUSDaiStorage {
         0x3625978433c3d3388ec2dddfdf4dd931786e9db5f2382a6ed08621dc9fb95f00;
 
     /**
-     * @notice Blacklist storage location
-     * @dev keccak256(abi.encode(uint256(keccak256("stakedUSDai.blacklist")) - 1)) & ~bytes32(uint256(0xff));
-     */
-    bytes32 private constant BLACKLIST_STORAGE_LOCATION =
-        0xd72eee3ef38e7b6c56e7e7a072b9106d43cf4d2b07e30824aa9ed4fd4bd66c00;
-
-    /**
      * @notice Deposits storage location
      * @dev keccak256(abi.encode(uint256(keccak256("stakedUSDai.deposits")) - 1)) & ~bytes32(uint256(0xff));
      */
@@ -113,13 +106,6 @@ abstract contract StakedUSDaiStorage {
      */
     struct BridgedSupply {
         uint256 bridgedSupply;
-    }
-
-    /**
-     * @custom:storage-location erc7201:stakedUSDai.blacklist
-     */
-    struct Blacklist {
-        mapping(address => bool) blacklist;
     }
 
     /**
@@ -205,17 +191,6 @@ abstract contract StakedUSDaiStorage {
     function _getBridgedSupplyStorage() internal pure returns (BridgedSupply storage $) {
         assembly {
             $.slot := BRIDGED_SUPPLY_STORAGE_LOCATION
-        }
-    }
-
-    /**
-     * @notice Get reference to ERC-7201 blacklist storage
-     *
-     * @return $ Reference to blacklist storage
-     */
-    function _getBlacklistStorage() internal pure returns (Blacklist storage $) {
-        assembly {
-            $.slot := BLACKLIST_STORAGE_LOCATION
         }
     }
 

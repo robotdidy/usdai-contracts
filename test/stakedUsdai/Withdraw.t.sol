@@ -123,7 +123,7 @@ contract StakedUSDaiWithdrawTest is BaseTest {
 
     function test__StakedUSDaiWithdraw_RevertWhen_Blacklisted() public {
         vm.prank(users.deployer);
-        stakedUsdai.setBlacklist(users.normalUser1, true);
+        usdai.setBlacklist(users.normalUser1, true);
 
         vm.startPrank(users.normalUser1);
         vm.expectRevert(abi.encodeWithSelector(IStakedUSDai.BlacklistedAddress.selector, users.normalUser1));

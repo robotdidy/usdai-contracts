@@ -79,13 +79,6 @@ interface IStakedUSDai is IBasePositionManager {
     event Migrated(string description, bytes data);
 
     /**
-     * @notice Blacklisted
-     * @param value Address
-     * @param isBlacklisted Blacklist status
-     */
-    event Blacklisted(address indexed value, bool isBlacklisted);
-
-    /**
      * @notice Redemption Processed
      * @param redemptionId Redemption ID
      * @param controller Controller
@@ -201,17 +194,6 @@ interface IStakedUSDai is IBasePositionManager {
      * @return Amount minted
      */
     function mint(uint256 shares, address receiver, uint256 maxAmount) external returns (uint256);
-
-    /*------------------------------------------------------------------------*/
-    /* Blacklister API */
-    /*------------------------------------------------------------------------*/
-
-    /**
-     * @notice Blacklist an address
-     * @param value Address to blacklist
-     * @param isBlacklisted Blacklist status
-     */
-    function setBlacklist(address value, bool isBlacklisted) external;
 
     /*------------------------------------------------------------------------*/
     /* Pause Admin API */
