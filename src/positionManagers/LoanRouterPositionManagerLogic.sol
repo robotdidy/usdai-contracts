@@ -84,7 +84,10 @@ library LoanRouterPositionManagerLogic {
      */
     function _validateCurrencyToken(address currencyToken, IUSDai usdai, IPriceOracle priceOracle) internal view {
         /* Validate currency token is either USDai, or supported by price oracle */
-        if (currencyToken != address(usdai) && !priceOracle.supportedToken(currencyToken)) {
+        if (
+            currencyToken != address(usdai) && currencyToken != usdai.baseToken()
+                && !priceOracle.supportedToken(currencyToken)
+        ) {
             revert UnsupportedCurrency(currencyToken);
         }
     }
@@ -125,6 +128,11 @@ library LoanRouterPositionManagerLogic {
     ) internal view returns (uint256) {
         /* If currency token is USDai, return amount */
         if (currencyToken == address(usdai)) return amount;
+
+        /* If currency token is base token, return scaled amount */
+        if (currencyToken == usdai.baseToken()) {
+            return amount * (10 ** (18 - IERC20Metadata(currencyToken).decimals()));
+        }
 
         /* Get price of currency token in terms of USDai */
         uint256 price = priceOracle_.price(currencyToken);

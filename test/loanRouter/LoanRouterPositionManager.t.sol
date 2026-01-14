@@ -1373,4 +1373,207 @@ contract LoanRouterPositionManagerTest is BaseLoanRouterTest {
         assertEq(pending3, 0, "Pending balance should be 0 (confirms hook didn't revert)");
         assertEq(accrued3, 0, "Accrued balance should be 0 (confirms loan was deleted)");
     }
+
+    /*------------------------------------------------------------------------*/
+    /* Tests: PYUSD as Loan Currency */
+    /*------------------------------------------------------------------------*/
+
+    function test__LoanRouterPositionManagerPYUSD_DepositAndOriginate() public {
+        uint256 principal = 1_000_000 * 1e6; // 1M PYUSD (6 decimals)
+        uint256 depositAmount = (1_000_000 * 1e18 * 100015) / 100000; // 1M USDai + 0.015%
+
+        // Verify NAV before deposit
+        uint256 navBefore = stakedUsdai.nav();
+
+        // Create PYUSD loan terms
+        ILoanRouter.LoanTerms memory loanTerms =
+            createLoanTerms(principal, wrappedTokenId, encodedBundle, address(PYUSD));
+        bytes32 loanTermsHash = loanRouter.loanTermsHash(loanTerms);
+
+        // Deposit funds
+        vm.startPrank(users.manager);
+        stakedUsdai.depositLoanTimelock(loanTermsHash, depositAmount, uint64(block.timestamp + 7 days));
+        vm.stopPrank();
+
+        // Verify NAV after deposit
+        uint256 navAfter = stakedUsdai.nav();
+        assertEq(navAfter, navBefore, "NAV should be the same after deposit");
+
+        // Verify deposit timelock balance increased
+        assertEq(stakedUsdai.depositTimelockBalance(), depositAmount, "depositTimelockBalance mismatch");
+
+        navBefore = stakedUsdai.nav();
+
+        // Fund borrower with PYUSD for repayments
+        deal(address(PYUSD), users.borrower, 10_000_000 * 1e6);
+        vm.prank(users.borrower);
+        PYUSD.approve(address(loanRouter), type(uint256).max);
+
+        // Borrow (triggers onLoanOriginated)
+        ILoanRouter.LenderDepositInfo[] memory lenderDepositInfos = new ILoanRouter.LenderDepositInfo[](1);
+        lenderDepositInfos[0] =
+            ILoanRouter.LenderDepositInfo({depositType: ILoanRouter.DepositType.DepositTimelock, data: ""});
+        vm.prank(users.borrower);
+        loanRouter.borrow(loanTerms, lenderDepositInfos);
+
+        // Verify NAV after borrowing
+        navAfter = stakedUsdai.nav();
+        assertApproxEqRel(navAfter, navBefore, 0.0002e18, "NAV should be the same after borrowing");
+
+        // Verify balances after origination
+        (uint256 repaymentBalance, uint256 pending,) = stakedUsdai.loanRouterBalances();
+        assertEq(stakedUsdai.depositTimelockBalance(), 0, "depositTimelockBalance should be 0");
+        assertGt(pending, 0, "pendingLoanBalance should be > 0");
+    }
+
+    function test__LoanRouterPositionManagerPYUSD_FullRepayment() public {
+        uint256 principal = 1_000_000 * 1e6; // 1M PYUSD (6 decimals)
+        uint256 depositAmount = (1_000_000 * 1e18 * 100015) / 100000;
+
+        // Create PYUSD loan terms
+        ILoanRouter.LoanTerms memory loanTerms =
+            createLoanTerms(principal, wrappedTokenId, encodedBundle, address(PYUSD));
+        bytes32 loanTermsHash = loanRouter.loanTermsHash(loanTerms);
+
+        // Deposit funds
+        vm.prank(users.manager);
+        stakedUsdai.depositLoanTimelock(loanTermsHash, depositAmount, uint64(block.timestamp + 7 days));
+
+        // Fund borrower with PYUSD for repayments
+        deal(address(PYUSD), users.borrower, 10_000_000 * 1e6);
+        vm.prank(users.borrower);
+        PYUSD.approve(address(loanRouter), type(uint256).max);
+
+        // Borrow
+        ILoanRouter.LenderDepositInfo[] memory lenderDepositInfos = new ILoanRouter.LenderDepositInfo[](1);
+        lenderDepositInfos[0] =
+            ILoanRouter.LenderDepositInfo({depositType: ILoanRouter.DepositType.DepositTimelock, data: ""});
+        vm.prank(users.borrower);
+        loanRouter.borrow(loanTerms, lenderDepositInfos);
+
+        // Warp to repayment window
+        warp(REPAYMENT_INTERVAL);
+
+        // Verify NAV before repayment
+        uint256 navBefore = stakedUsdai.nav();
+
+        // Make full repayment
+        uint256 fullRepaymentAmount = 2_000_000 * 1e6; // Large enough to cover everything
+        vm.prank(users.borrower);
+        loanRouter.repay(loanTerms, fullRepaymentAmount);
+
+        // Verify NAV after repayment
+        uint256 navAfter = stakedUsdai.nav();
+        assertApproxEqRel(navAfter, navBefore, 0.0000001e18, "NAV should be the same after repayment");
+
+        // Verify balances after full repayment
+        (uint256 repayment, uint256 pending, uint256 accrued) = stakedUsdai.loanRouterBalances();
+        assertEq(pending, 0, "pendingLoanBalance should be 0");
+        assertEq(accrued, 0, "accruedLoanInterest should be 0");
+        assertGt(repayment, depositAmount, "Repayment should be > depositAmount");
+    }
+
+    function test__LoanRouterPositionManagerPYUSD_DepositLoanRepayment() public {
+        uint256 principal = 1_000_000 * 1e6; // 1M PYUSD (6 decimals)
+        uint256 depositAmount = (1_000_000 * 1e18 * 100015) / 100000;
+
+        // Create PYUSD loan terms
+        ILoanRouter.LoanTerms memory loanTerms =
+            createLoanTerms(principal, wrappedTokenId, encodedBundle, address(PYUSD));
+        bytes32 loanTermsHash = loanRouter.loanTermsHash(loanTerms);
+
+        // Deposit funds
+        vm.prank(users.manager);
+        stakedUsdai.depositLoanTimelock(loanTermsHash, depositAmount, uint64(block.timestamp + 7 days));
+
+        // Fund borrower with PYUSD for repayments
+        deal(address(PYUSD), users.borrower, 10_000_000 * 1e6);
+        vm.prank(users.borrower);
+        PYUSD.approve(address(loanRouter), type(uint256).max);
+
+        // Borrow
+        ILoanRouter.LenderDepositInfo[] memory lenderDepositInfos = new ILoanRouter.LenderDepositInfo[](1);
+        lenderDepositInfos[0] =
+            ILoanRouter.LenderDepositInfo({depositType: ILoanRouter.DepositType.DepositTimelock, data: ""});
+        vm.prank(users.borrower);
+        loanRouter.borrow(loanTerms, lenderDepositInfos);
+
+        // Warp to repayment window
+        warp(REPAYMENT_INTERVAL);
+
+        // Make a partial repayment
+        uint256 repaymentAmount = 100_000 * 1e6;
+        vm.prank(users.borrower);
+        loanRouter.repay(loanTerms, repaymentAmount);
+
+        // PYUSD is transferred directly to StakedUSDai during repayment
+        uint256 pyusdBalance = PYUSD.balanceOf(address(stakedUsdai));
+        assertGt(pyusdBalance, 0, "StakedUSDai should have PYUSD balance after repayment");
+
+        (uint256 repaymentBefore,,) = stakedUsdai.loanRouterBalances();
+        assertGt(repaymentBefore, 0, "Should have repayment balance after repayment");
+
+        // Convert half of physical PYUSD balance
+        uint256 pyusdToConvert = pyusdBalance / 2;
+
+        // Convert PYUSD to USDai
+        vm.startPrank(users.manager);
+        stakedUsdai.depositLoanRepayment(address(PYUSD), pyusdToConvert, 0, "");
+        vm.stopPrank();
+
+        // Verify conversion worked - repayment should decrease
+        (uint256 repaymentAfter,,) = stakedUsdai.loanRouterBalances();
+        assertLt(repaymentAfter, repaymentBefore, "Repayment should decrease after conversion");
+    }
+
+    function test__LoanRouterPositionManagerPYUSD_WithdrawAdminFee() public {
+        uint256 principal = 1_000_000 * 1e6; // 1M PYUSD (6 decimals)
+        uint256 depositAmount = (1_000_000 * 1e18 * 100015) / 100000;
+
+        // Create PYUSD loan terms
+        ILoanRouter.LoanTerms memory loanTerms =
+            createLoanTerms(principal, wrappedTokenId, encodedBundle, address(PYUSD));
+        bytes32 loanTermsHash = loanRouter.loanTermsHash(loanTerms);
+
+        // Deposit funds
+        vm.prank(users.manager);
+        stakedUsdai.depositLoanTimelock(loanTermsHash, depositAmount, uint64(block.timestamp + 7 days));
+
+        // Fund borrower with PYUSD for repayments
+        deal(address(PYUSD), users.borrower, 10_000_000 * 1e6);
+        vm.prank(users.borrower);
+        PYUSD.approve(address(loanRouter), type(uint256).max);
+
+        // Borrow
+        ILoanRouter.LenderDepositInfo[] memory lenderDepositInfos = new ILoanRouter.LenderDepositInfo[](1);
+        lenderDepositInfos[0] =
+            ILoanRouter.LenderDepositInfo({depositType: ILoanRouter.DepositType.DepositTimelock, data: ""});
+        vm.prank(users.borrower);
+        loanRouter.borrow(loanTerms, lenderDepositInfos);
+
+        // Warp to repayment window
+        warp(REPAYMENT_INTERVAL);
+
+        // Make a partial repayment
+        uint256 repaymentAmount = 100_000 * 1e6;
+        vm.prank(users.borrower);
+        loanRouter.repay(loanTerms, repaymentAmount);
+
+        // PYUSD is transferred directly to StakedUSDai during repayment
+        uint256 pyusdBalance = PYUSD.balanceOf(address(stakedUsdai));
+        assertGt(pyusdBalance, 0, "StakedUSDai should have PYUSD balance after repayment");
+
+        (, uint256 adminFeeBefore) = stakedUsdai.repaymentBalances(address(PYUSD));
+        assertGt(adminFeeBefore, 0, "Should have admin fee balance after repayment");
+
+        // Withdraw admin fee - converts PYUSD to USDai and sends to admin
+        vm.startPrank(users.manager);
+        stakedUsdai.withdrawAdminFee(address(PYUSD), adminFeeBefore, 0, "");
+        vm.stopPrank();
+
+        (, uint256 adminFeeAfter) = stakedUsdai.repaymentBalances(address(PYUSD));
+        assertEq(adminFeeAfter, 0, "Admin fee should be 0 after withdrawal");
+
+        assertGt(IERC20(address(usdai)).balanceOf(address(users.admin)), 0, "Admin should have received USDai");
+    }
 }

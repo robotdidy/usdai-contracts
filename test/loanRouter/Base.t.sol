@@ -189,6 +189,15 @@ abstract contract BaseLoanRouterTest is BaseTest {
         uint256 _wrappedTokenId,
         bytes memory _encodedBundle
     ) internal view returns (ILoanRouter.LoanTerms memory) {
+        return createLoanTerms(principal, _wrappedTokenId, _encodedBundle, USDC);
+    }
+
+    function createLoanTerms(
+        uint256 principal,
+        uint256 _wrappedTokenId,
+        bytes memory _encodedBundle,
+        address currencyToken
+    ) internal view returns (ILoanRouter.LoanTerms memory) {
         ILoanRouter.TrancheSpec[] memory trancheSpecs = new ILoanRouter.TrancheSpec[](1);
 
         trancheSpecs[0] = ILoanRouter.TrancheSpec({lender: address(stakedUsdai), amount: principal, rate: RATE_10_PCT});
@@ -196,7 +205,7 @@ abstract contract BaseLoanRouterTest is BaseTest {
         return ILoanRouter.LoanTerms({
             expiration: uint64(block.timestamp + 7 days),
             borrower: users.borrower,
-            currencyToken: USDC,
+            currencyToken: currencyToken,
             collateralToken: address(bundleCollateralWrapper),
             collateralTokenId: _wrappedTokenId,
             duration: LOAN_DURATION,
