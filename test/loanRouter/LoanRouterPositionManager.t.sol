@@ -678,6 +678,50 @@ contract LoanRouterPositionManagerTest is BaseLoanRouterTest {
     }
 
     /*------------------------------------------------------------------------*/
+    /* Tests: withdrawAdminFee */
+    /*------------------------------------------------------------------------*/
+
+    function test__LoanRouterPositionManagerWithdrawAdminFee_ConvertsUSDCToUSDai() public {
+        uint256 principal = 1_000_000 * 1e6;
+        uint256 depositAmount = (1_000_000 * 1e18 * 100015) / 100000;
+        // Setup, borrow, and repay to get USDC balance
+        ILoanRouter.LoanTerms memory loanTerms = _depositLoanTimelock(principal, depositAmount);
+        _borrowLoan(loanTerms);
+        warp(REPAYMENT_INTERVAL);
+
+        // Make a partial repayment
+        uint256 repaymentAmount = 100_000 * 1e6;
+        vm.startPrank(users.borrower);
+        IERC20(USDC).approve(address(loanRouter), repaymentAmount);
+        loanRouter.repay(loanTerms, repaymentAmount);
+        vm.stopPrank();
+
+        // USDC is transferred directly to StakedUSDai during repayment
+        uint256 usdcBalance = IERC20(USDC).balanceOf(address(stakedUsdai));
+
+        assertGt(usdcBalance, 0, "StakedUSDai should have USDC balance after repayment");
+
+        (, uint256 adminFeeBefore) = stakedUsdai.repaymentBalances(USDC);
+        assertGt(adminFeeBefore, 0, "Should have admin fee balance after repayment");
+
+        // Convert USDC to USDai
+        vm.startPrank(users.manager);
+        stakedUsdai.withdrawAdminFee(
+            USDC,
+            adminFeeBefore,
+            adminFeeBefore * 1e12 * 98 / 100, // 2% slippage tolerance
+            ""
+        );
+        vm.stopPrank();
+
+        (, uint256 adminFeeAfter) = stakedUsdai.repaymentBalances(USDC);
+
+        assertEq(adminFeeAfter, 0, "Admin fee should be 0 after conversion");
+
+        assertGt(IERC20(address(usdai)).balanceOf(address(users.admin)), 0, "USDC balance be more");
+    }
+
+    /*------------------------------------------------------------------------*/
     /* Tests: Complex Multi-Loan Scenarios */
     /*------------------------------------------------------------------------*/
 

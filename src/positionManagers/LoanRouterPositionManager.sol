@@ -170,6 +170,18 @@ abstract contract LoanRouterPositionManager is
         return LoanRouterPositionManagerLogic.loanRouterBalance(_getLoansStorage(), _usdai, _priceOracle);
     }
 
+    /**
+     * @inheritdoc ILoanRouterPositionManager
+     */
+    function repaymentBalances(
+        address currencyToken
+    ) external view returns (uint256, uint256) {
+        return (
+            _getLoansStorage().repaymentBalances[currencyToken].repayment,
+            _getLoansStorage().repaymentBalances[currencyToken].adminFee
+        );
+    }
+
     /*------------------------------------------------------------------------*/
     /* Internal helpers */
     /*------------------------------------------------------------------------*/
@@ -438,5 +450,41 @@ abstract contract LoanRouterPositionManager is
 
         /* Emit LoanRepaymentDeposited */
         emit LoanRepaymentDeposited(currencyToken, depositAmount, usdaiDepositAmount);
+    }
+
+    /**
+     * @inheritdoc ILoanRouterPositionManager
+     */
+    function withdrawAdminFee(
+        address currencyToken,
+        uint256 adminFeeAmount,
+        uint256 usdaiAmountMinimum,
+        bytes calldata data
+    ) external onlyRole(STRATEGY_ADMIN_ROLE) nonReentrant {
+        /* Validate admin fee balance */
+        if (adminFeeAmount > _getLoansStorage().repaymentBalances[currencyToken].adminFee) {
+            revert InsufficientBalance();
+        }
+
+        /* Update admin fee balance */
+        _getLoansStorage().repaymentBalances[currencyToken].adminFee -= adminFeeAmount;
+
+        /* Get USDai deposit amount */
+        uint256 usdaiDepositAmount;
+        if (currencyToken == address(_usdai)) {
+            usdaiDepositAmount = adminFeeAmount;
+        } else {
+            /* Approve currency token */
+            IERC20(currencyToken).forceApprove(address(_usdai), adminFeeAmount);
+
+            /* Swap currency token to USDai */
+            usdaiDepositAmount = _usdai.deposit(currencyToken, adminFeeAmount, usdaiAmountMinimum, address(this), data);
+        }
+
+        /* Transfer USDai to admin fee recipient */
+        _usdai.transfer(_adminFeeRecipient, usdaiDepositAmount);
+
+        /* Emit AdminFeeWithdrawn */
+        emit AdminFeeWithdrawn(currencyToken, adminFeeAmount, usdaiDepositAmount);
     }
 }
