@@ -25,3 +25,23 @@ dataSources:
             address,uint256,uint32)
           handler: handlePredepositVaultDeposit
       file: ./src/predeposit-vault.ts
+  - kind: ethereum
+    name: USDai
+    network: arbitrum-one
+    source:
+      abi: USDai
+      address: "0x0a1a1a107e45b7ced86833863f482bc5f4ed82ef"
+      startBlock: 336209932
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - USDaiStats
+      abis:
+        - name: USDai
+          file: ../out/USDai.sol/USDai.json
+      eventHandlers:
+        - event: Transfer(indexed address,indexed address,uint256)
+          handler: handleTransfer
+      file: ./src/usdai.ts

@@ -9,3 +9,9 @@ type Predeposit @entity(immutable: true) {
   timestamp: BigInt!
   transactionHash: Bytes!
 }
+
+type USDaiStats @entity(immutable: false) {
+  id: Bytes!
+  totalVolume: BigInt! # Cumulative transfer amount
+  transferCount: BigInt!
+}
