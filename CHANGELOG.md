@@ -1,3 +1,6 @@
+* OUSDaiUtility v1.7 - 01/23/2026
+    * Add blacklist support with refund mechanism.
+
 * StakedUSDai v1.7 - 01/23/2026
     * Remove deprecated `PoolPositionManager`.
     * Add timelock refund handling to `LoanRouterPositionManager`.
