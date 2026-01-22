@@ -57,7 +57,7 @@ contract StakedUSDai is
     /**
      * @notice Implementation version
      */
-    string public constant IMPLEMENTATION_VERSION = "1.6";
+    string public constant IMPLEMENTATION_VERSION = "1.7";
 
     /**
      * @notice Fixed point scale
