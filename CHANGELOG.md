@@ -1,3 +1,11 @@
+* StakedUSDai v1.7 - 01/23/2026
+    * Remove deprecated `PoolPositionManager`.
+    * Add timelock refund handling to `LoanRouterPositionManager`.
+    * Migrate blacklist to use USDai state.
+    * Add support for new base token in USDai.
+    * Add `withdrawAdminFee()` API to `LoanRouterPositionManager`.
+    * Add `repaymentBalances()` getter to `LoanRouterPositionManager`.
+
 * USDai v1.4 - 01/23/2026
     * Migrate base token to PYUSD.
     * Add blacklist support.
