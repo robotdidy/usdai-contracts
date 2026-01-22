@@ -1,3 +1,6 @@
+* BaseYieldEscrow v1.0 - 01/23/2026
+    * Initial release.
+
 * ChainlinkPriceOracle v1.1 - 01/23/2026
     * Migrate to PYUSD price feed.
 
