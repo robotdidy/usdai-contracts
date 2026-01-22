@@ -1,3 +1,7 @@
+* USDai v1.4 - 01/23/2026
+    * Migrate base token to PYUSD.
+    * Add blacklist support.
+
 * BaseYieldEscrow v1.0 - 01/23/2026
     * Initial release.
 
