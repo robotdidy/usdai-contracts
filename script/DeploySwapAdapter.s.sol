@@ -5,7 +5,7 @@ import "forge-std/Script.sol";
 
 import {UniswapV3SwapAdapter} from "src/swapAdapters/UniswapV3SwapAdapter.sol";
 
-import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 
 import {Deployer} from "./utils/Deployer.s.sol";
 
@@ -13,14 +13,21 @@ contract DeploySwapAdapter is Deployer {
     function run(
         address baseToken,
         address swapRouter,
-        address[] memory tokens
+        address[] memory tokens,
+        address admin
     ) public broadcast useDeployment returns (address) {
         // Deploy UniswapV3SwapAdapter
         UniswapV3SwapAdapter swapAdapter = new UniswapV3SwapAdapter(baseToken, swapRouter, tokens);
         console.log("UniswapV3SwapAdapter", address(swapAdapter));
 
         // Grant role to USDAI
-        AccessControl(address(swapAdapter)).grantRole(keccak256("USDAI_ROLE"), address(_deployment.USDai));
+        IAccessControl(swapAdapter).grantRole(keccak256("USDAI_ROLE"), address(_deployment.USDai));
+
+        // Transfer swap adapter admin role
+        if (admin != msg.sender) {
+            IAccessControl(swapAdapter).grantRole(0x00, admin);
+            IAccessControl(swapAdapter).revokeRole(0x00, msg.sender);
+        }
 
         // Log deployment
         _deployment.swapAdapter = address(swapAdapter);
