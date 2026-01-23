@@ -1,3 +1,6 @@
+* ChainlinkPriceOracle v1.1 - 01/23/2026
+    * Migrate to PYUSD price feed.
+
 * StakedUSDai v1.6 - 12/12/2025
     * Add temporary `poolGarbageCollect()` API to `PoolPositionManager` to
       clean up deprecated pools state.
