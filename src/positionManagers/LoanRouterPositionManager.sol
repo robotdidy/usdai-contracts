@@ -205,12 +205,13 @@ abstract contract LoanRouterPositionManager is
         (uint256 repaymentLoanBalance, uint256 pendingLoanBalance, uint256 accruedLoanInterestBalance) =
             loanRouterBalances();
 
-        /* Compute accrued interest and admin fee based on valuation type */
-        if (valuationType == PositionManager.ValuationType.CONSERVATIVE) accruedLoanInterestBalance = 0;
-
         /* Return total assets in terms of USDai */
-        return depositTimelockBalance() + repaymentLoanBalance + pendingLoanBalance + accruedLoanInterestBalance
-            - (accruedLoanInterestBalance * _loanRouterAdminFeeRate / BASIS_POINTS_SCALE);
+        return depositTimelockBalance() + repaymentLoanBalance + pendingLoanBalance
+            + (
+                (valuationType == PositionManager.ValuationType.OPTIMISTIC)
+                    ? (accruedLoanInterestBalance - (accruedLoanInterestBalance * _loanRouterAdminFeeRate / BASIS_POINTS_SCALE))
+                    : 0
+            );
     }
 
     /*------------------------------------------------------------------------*/
