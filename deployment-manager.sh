@@ -40,7 +40,7 @@ usage() {
     echo "  deploy-test-environment <wrapped M token> <swap router> <mnav price feed> <loan router> <tokens> <price feeds>"
     echo ""
     echo "  deploy-test-pyusd-price-feed"
-    echo "  deploy-swap-adapter <base token> <swap router> <tokens>"
+    echo "  deploy-swap-adapter <base token> <swap router> <tokens> <admin>"
     echo "  deploy-price-oracle <base token price feed> <tokens> <price feeds> <admin>"
     echo "  deploy-oadapter <token> <lz endpoint>"
     echo "  deploy-otoken <name> <symbol>"
