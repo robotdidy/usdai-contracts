@@ -348,6 +348,9 @@ contract USDai is
         address recipient,
         bytes calldata data
     ) internal nonZeroUint(depositAmount) nonZeroAddress(recipient) returns (uint256) {
+        /* Accrue base yield */
+        _accrue();
+
         /* Transfer token in from sender to this contract */
         IERC20(depositToken).safeTransferFrom(msg.sender, address(this), depositAmount);
 
@@ -367,9 +370,6 @@ contract USDai is
         if (!hasRole(DEPOSIT_ADMIN_ROLE, msg.sender) && usdaiAmount + totalSupply() + bridgedSupply() > supplyCap()) {
             revert SupplyCapExceeded();
         }
-
-        /* Accrue base yield */
-        _accrue();
 
         /* Mint to the recipient */
         _mint(recipient, usdaiAmount);
