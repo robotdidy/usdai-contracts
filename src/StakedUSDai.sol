@@ -123,18 +123,6 @@ contract StakedUSDai is
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
     }
 
-    /**
-     * @notice Migrate the contract
-     * @dev Update USDai loan repayment balance with deposit timelock refunds
-     * prior to deposit timelock refund support in LoanRouterPositionManager.
-     */
-    function migrate() external reinitializer(3) {
-        address usdc = 0xaf88d065e77c8cC2239327C5EDb3A432268e5831;
-
-        _getLoansStorage().repaymentBalances[usdc].repayment =
-            IERC20(usdc).balanceOf(address(this)) - _getLoansStorage().repaymentBalances[usdc].adminFee;
-    }
-
     /*------------------------------------------------------------------------*/
     /* Modifiers  */
     /*------------------------------------------------------------------------*/
