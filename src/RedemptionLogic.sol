@@ -156,7 +156,7 @@ library RedemptionLogic {
      */
     function _nextRedemptionTimestamp(
         uint64 genesisTimestamp
-    ) public view returns (uint64) {
+    ) internal view returns (uint64) {
         /* Compute count */
         uint64 count = block.timestamp >= genesisTimestamp
             ? uint64((block.timestamp - genesisTimestamp) / REDEMPTION_WINDOW + 1)
