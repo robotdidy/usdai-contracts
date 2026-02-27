@@ -306,7 +306,7 @@ contract USDai is
      */
     function _scale(
         uint256 value
-    ) public view returns (uint256) {
+    ) internal view returns (uint256) {
         return value * _scaleFactor;
     }
 
@@ -317,7 +317,7 @@ contract USDai is
      */
     function _unscale(
         uint256 value
-    ) public view returns (uint256) {
+    ) internal view returns (uint256) {
         return value / _scaleFactor;
     }
 
@@ -328,7 +328,7 @@ contract USDai is
      */
     function _unscaleUp(
         uint256 value
-    ) public view returns (uint256) {
+    ) internal view returns (uint256) {
         return (value + _scaleFactor - 1) / _scaleFactor;
     }
 
