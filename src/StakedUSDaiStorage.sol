@@ -29,11 +29,6 @@ abstract contract StakedUSDaiStorage {
     bytes32 internal constant STRATEGY_ADMIN_ROLE = keccak256("STRATEGY_ADMIN_ROLE");
 
     /**
-     * @notice Blacklister role
-     */
-    bytes32 internal constant BLACKLIST_ADMIN_ROLE = keccak256("BLACKLIST_ADMIN_ROLE");
-
-    /**
      * @notice Bridge admin role
      */
     bytes32 internal constant BRIDGE_ADMIN_ROLE = keccak256("BRIDGE_ADMIN_ROLE");
