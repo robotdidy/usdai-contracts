@@ -51,7 +51,7 @@ contract OToken is
      * @param symbol_ Token symbol
      * @param admin Default admin address
      */
-    function initialize(string memory name_, string memory symbol_, address admin) public initializer {
+    function initialize(string memory name_, string memory symbol_, address admin) external initializer {
         __ERC20_init(name_, symbol_);
         __ERC20Permit_init(name_);
         __Multicall_init();
