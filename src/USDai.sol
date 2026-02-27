@@ -149,7 +149,7 @@ contract USDai is
      */
     function initialize(
         address admin
-    ) public initializer {
+    ) external initializer {
         __ERC20_init("USDai", "USDai");
         __ERC20Permit_init("USDai");
         __Multicall_init();
