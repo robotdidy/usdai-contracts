@@ -72,7 +72,7 @@ contract MockStakedUSDai is
         address loanRouter_
     )
         StakedUSDaiStorage(usdai_, address(0), address(0), uint64(block.timestamp))
-        BasePositionManager(address(0), 0)
+        BasePositionManager(0)
         LoanRouterPositionManager(loanRouter_, 0)
     {
         _disableInitializers();

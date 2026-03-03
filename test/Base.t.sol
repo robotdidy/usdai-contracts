@@ -37,9 +37,6 @@ import {TestPYUSDPriceFeed} from "../script/DeployTestPYUSDPriceFeed.s.sol";
  * @dev Sets up users and token contracts
  */
 abstract contract BaseTest is Test {
-    /* Wrapped M */
-    address internal constant WRAPPED_M_TOKEN = 0x437cc33344a0B27A429f795ff6B469C72698B291;
-
     /* PYUSD OFT adapter */
     address internal constant PYUSD_OFT_ADAPTER = 0xFaB5891ED867a1195303251912013b92c4fc3a1D;
 
@@ -376,7 +373,6 @@ abstract contract BaseTest is Test {
         /* Deploy staked usdai implementation */
         StakedUSDai stakedUsdaiImpl = new StakedUSDai(
             address(usdai),
-            WRAPPED_M_TOKEN,
             address(priceOracle),
             address(loanRouter),
             address(users.admin),

@@ -6,7 +6,6 @@ import "forge-std/Script.sol";
 import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import {ERC1967Utils} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.sol";
 
-import {IUSDai} from "src/interfaces/IUSDai.sol";
 import {StakedUSDai} from "src/StakedUSDai.sol";
 import {Deployer} from "./utils/Deployer.s.sol";
 
@@ -20,7 +19,6 @@ contract UpgradeStakedUSDai is Deployer {
         // Deploy StakedUSDai implemetation
         StakedUSDai stakedUSDaiImpl = new StakedUSDai(
             _deployment.USDai,
-            IUSDai(_deployment.USDai).baseToken(),
             _deployment.priceOracle,
             loanRouter,
             adminFeeRecipient,

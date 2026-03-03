@@ -54,7 +54,7 @@ contract USDaiServiceQueuedDepositWithOneInchTest is BaseTest {
         vm.startPrank(0x783B08aA21DE056717173f72E04Be0E91328A07b);
 
         USDai usdaiImpl =
-            new USDai(swapAdapter, address(new BaseYieldEscrow(address(usdai), WRAPPED_M_TOKEN)), address(stakedUsdai));
+            new USDai(swapAdapter, address(new BaseYieldEscrow(address(usdai), address(PYUSD))), address(stakedUsdai));
         vm.etch(address(usdai), address(usdaiImpl).code);
 
         // Deploy USDai implemetation
