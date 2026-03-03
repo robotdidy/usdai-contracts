@@ -466,17 +466,6 @@ contract MockUSDai is
         emit SupplyCapSet(cap);
     }
 
-    /**
-     * @notice Convert base token
-     * @param amount Amount
-     */
-    function convertBaseToken(
-        uint256 amount
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        /* Emit base token converted event */
-        emit BaseTokenConverted(msg.sender, amount);
-    }
-
     /*------------------------------------------------------------------------*/
     /* ERC165 */
     /*------------------------------------------------------------------------*/

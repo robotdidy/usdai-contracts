@@ -55,11 +55,6 @@ contract USDai is
     bytes32 internal constant DEPOSIT_ADMIN_ROLE = keccak256("DEPOSIT_ADMIN_ROLE");
 
     /**
-     * @notice Convert base token admin role
-     */
-    bytes32 internal constant CONVERT_BASE_TOKEN_ADMIN_ROLE = keccak256("CONVERT_BASE_TOKEN_ADMIN_ROLE");
-
-    /**
      * @notice Blacklist admin role
      */
     bytes32 internal constant BLACKLIST_ADMIN_ROLE = keccak256("BLACKLIST_ADMIN_ROLE");
@@ -651,39 +646,6 @@ contract USDai is
 
         /* Emit blacklist updated event */
         emit BlacklistUpdated(account, blacklisted);
-    }
-
-    /**
-     * @notice Convert base token
-     * @param amount Amount
-     */
-    function convertBaseToken(
-        uint256 amount
-    ) external onlyRole(CONVERT_BASE_TOKEN_ADMIN_ROLE) {
-        /* Wrapped M token */
-        address wrappedMToken = 0x437cc33344a0B27A429f795ff6B469C72698B291;
-
-        /* Validate amount */
-        if (IERC20(wrappedMToken).balanceOf(address(this)) < amount || amount == 0) {
-            revert InvalidAmount();
-        }
-
-        /* Set initial accrual timestamp to the current timestamp */
-        if (_getBaseYieldAccrualStorage().timestamp == 0) {
-            _getBaseYieldAccrualStorage().timestamp = uint64(block.timestamp);
-        }
-
-        /* Accrue base yield */
-        _accrue();
-
-        /* Transfer token to caller */
-        IERC20(wrappedMToken).safeTransfer(msg.sender, amount);
-
-        /* Transfer base token from caller to this contract */
-        _baseToken.safeTransferFrom(msg.sender, address(this), amount);
-
-        /* Emit converted base token event */
-        emit BaseTokenConverted(msg.sender, amount);
     }
 
     /*------------------------------------------------------------------------*/

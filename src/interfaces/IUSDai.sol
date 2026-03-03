@@ -147,13 +147,6 @@ interface IUSDai is IERC20 {
      */
     event BaseYieldRateTiersSet(RateTier[] rateTiers);
 
-    /**
-     * @notice Base token converted event
-     * @param converter Converter
-     * @param amount Amount
-     */
-    event BaseTokenConverted(address indexed converter, uint256 amount);
-
     /*------------------------------------------------------------------------*/
     /* Getters */
     /*------------------------------------------------------------------------*/
