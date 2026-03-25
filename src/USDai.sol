@@ -50,11 +50,6 @@ contract USDai is
     bytes32 internal constant BRIDGE_ADMIN_ROLE = keccak256("BRIDGE_ADMIN_ROLE");
 
     /**
-     * @notice Deposit admin role
-     */
-    bytes32 internal constant DEPOSIT_ADMIN_ROLE = keccak256("DEPOSIT_ADMIN_ROLE");
-
-    /**
      * @notice Blacklist admin role
      */
     bytes32 internal constant BLACKLIST_ADMIN_ROLE = keccak256("BLACKLIST_ADMIN_ROLE");
@@ -222,13 +217,6 @@ contract USDai is
     /**
      * @inheritdoc IUSDai
      */
-    function supplyCap() public view returns (uint256) {
-        return _getSupplyStorage().cap;
-    }
-
-    /**
-     * @inheritdoc IUSDai
-     */
     function baseYieldAccrued() external view returns (uint256) {
         BaseYieldAccrual memory accrual = _getBaseYieldAccrualStorage();
 
@@ -359,11 +347,6 @@ contract USDai is
             usdaiAmount = _scale(_swapAdapter.swapIn(depositToken, depositAmount, _unscaleUp(usdaiAmountMinimum), data));
         } else {
             usdaiAmount = _scale(depositAmount);
-        }
-
-        /* Check if the supply cap is exceeded */
-        if (!hasRole(DEPOSIT_ADMIN_ROLE, msg.sender) && usdaiAmount + totalSupply() + bridgedSupply() > supplyCap()) {
-            revert SupplyCapExceeded();
         }
 
         /* Mint to the recipient */
@@ -625,18 +608,6 @@ contract USDai is
     /*------------------------------------------------------------------------*/
     /* Permissioned API */
     /*------------------------------------------------------------------------*/
-
-    /**
-     * @inheritdoc IUSDai
-     */
-    function setSupplyCap(
-        uint256 cap
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        _getSupplyStorage().cap = cap;
-
-        /* Emit supply cap set event */
-        emit SupplyCapSet(cap);
-    }
 
     /**
      * @inheritdoc IUSDai

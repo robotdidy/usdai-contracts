@@ -181,13 +181,6 @@ contract MockUSDai is
     /**
      * @inheritdoc IUSDai
      */
-    function supplyCap() public view returns (uint256) {
-        return _getSupplyStorage().cap;
-    }
-
-    /**
-     * @inheritdoc IUSDai
-     */
     function baseYieldAccrued() public view returns (uint256) {
         return _getBaseYieldAccrualStorage().accrued;
     }
@@ -447,23 +440,6 @@ contract MockUSDai is
 
         /* Emit rate tiers set event */
         emit BaseYieldRateTiersSet(rateTiers);
-    }
-
-    /*------------------------------------------------------------------------*/
-    /* Permissioned API */
-    /*------------------------------------------------------------------------*/
-
-    /**
-     * @notice Set supply cap
-     * @param cap Supply cap
-     */
-    function setSupplyCap(
-        uint256 cap
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        _getSupplyStorage().cap = cap;
-
-        /* Emit supply cap set event */
-        emit SupplyCapSet(cap);
     }
 
     /*------------------------------------------------------------------------*/

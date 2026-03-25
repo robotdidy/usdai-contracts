@@ -23,11 +23,6 @@ interface IUSDai is IERC20 {
     error InvalidAmount();
 
     /**
-     * @notice Exceeded supply cap
-     */
-    error SupplyCapExceeded();
-
-    /**
      * @notice Invalid decimals
      */
     error InvalidDecimals();
@@ -60,7 +55,6 @@ interface IUSDai is IERC20 {
      */
     struct Supply {
         uint256 bridged;
-        uint256 cap;
     }
 
     /**
@@ -136,12 +130,6 @@ interface IUSDai is IERC20 {
     event BlacklistUpdated(address indexed account, bool isBlacklisted);
 
     /**
-     * @notice Supply cap set
-     * @param supplyCap Supply cap
-     */
-    event SupplyCapSet(uint256 supplyCap);
-
-    /**
      * @notice Base yield rate tiers set
      * @param rateTiers Rate tiers
      */
@@ -168,12 +156,6 @@ interface IUSDai is IERC20 {
      * @return Bridged supply
      */
     function bridgedSupply() external view returns (uint256);
-
-    /**
-     * @notice Get supply cap
-     * @return Supply cap
-     */
-    function supplyCap() external view returns (uint256);
 
     /**
      * @notice Get base yield accrued
@@ -283,14 +265,6 @@ interface IUSDai is IERC20 {
     /*------------------------------------------------------------------------*/
     /* Permissioned API */
     /*------------------------------------------------------------------------*/
-
-    /**
-     * @notice Set supply cap
-     * @param cap Supply cap
-     */
-    function setSupplyCap(
-        uint256 cap
-    ) external;
 
     /**
      * @notice Set rate tiers
