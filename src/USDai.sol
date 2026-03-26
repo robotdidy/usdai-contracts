@@ -2,6 +2,7 @@
 pragma solidity 0.8.29;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/interfaces/IERC5267.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -630,6 +631,7 @@ contract USDai is
         bytes4 interfaceId
     ) public view virtual override(AccessControlUpgradeable, ERC165Upgradeable) returns (bool) {
         return interfaceId == type(IERC20).interfaceId || interfaceId == type(IUSDai).interfaceId
-            || interfaceId == type(IMintableBurnable).interfaceId || super.supportsInterface(interfaceId);
+            || interfaceId == type(IMintableBurnable).interfaceId || interfaceId == type(IERC20Permit).interfaceId
+            || interfaceId == type(IERC5267).interfaceId || super.supportsInterface(interfaceId);
     }
 }
