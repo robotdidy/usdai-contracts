@@ -45,7 +45,7 @@ contract USDai is
     /**
      * @notice Implementation version
      */
-    string public constant IMPLEMENTATION_VERSION = "1.4";
+    string public constant IMPLEMENTATION_VERSION = "1.5";
 
     /**
      * @notice Blacklist admin role
