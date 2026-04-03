@@ -10,7 +10,7 @@ import "./interfaces/IStakedUSDai.sol";
 
 /**
  * @title Redemption Logic
- * @author MetaStreet Foundation
+ * @author USD.AI Foundation
  */
 library RedemptionLogic {
     using EnumerableSet for EnumerableSet.UintSet;

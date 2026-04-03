@@ -46,8 +46,7 @@ import {TestERC20} from "../tokens/TestERC20.sol";
 
 /**
  * @title Omnichain Base test setup
- *
- * @author MetaStreet Foundation
+ * @author USD.AI Foundation
  * @author Modified from https://github.com/PaulRBerg/prb-proxy/blob/main/test/Base.t.sol
  *
  */

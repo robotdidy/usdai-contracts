@@ -3,7 +3,7 @@ pragma solidity 0.8.29;
 
 /**
  * @title Base Position Manager
- * @author MetaStreet Foundation
+ * @author USD.AI Foundation
  */
 abstract contract PositionManager {
     /*------------------------------------------------------------------------*/

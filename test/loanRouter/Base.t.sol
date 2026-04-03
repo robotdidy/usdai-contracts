@@ -16,7 +16,7 @@ import {TestERC721} from "test/tokens/TestERC721.sol";
 
 /**
  * @title Base test setup for LoanRouter Position Manager
- * @author MetaStreet Foundation
+ * @author USD.AI Foundation
  */
 abstract contract BaseLoanRouterTest is BaseTest {
     /*------------------------------------------------------------------------*/

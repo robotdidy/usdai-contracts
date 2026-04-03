@@ -23,7 +23,7 @@ import "./interfaces/external/IBlacklist.sol";
 
 /**
  * @title USDai ERC20
- * @author MetaStreet Foundation
+ * @author USD.AI Foundation
  */
 contract USDai is
     IUSDai,

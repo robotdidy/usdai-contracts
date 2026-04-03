@@ -19,7 +19,7 @@ import "../interfaces/IUSDaiQueuedDepositor.sol";
 
 /**
  * @title Omnichain USDai Utility
- * @author MetaStreet Foundation
+ * @author USD.AI Foundation
  */
 contract OUSDaiUtility is ILayerZeroComposer, ReentrancyGuardUpgradeable, AccessControlUpgradeable, IOUSDaiUtility {
     using SafeERC20 for IERC20;

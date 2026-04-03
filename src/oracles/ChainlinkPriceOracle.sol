@@ -10,7 +10,7 @@ import "../interfaces/IPriceOracle.sol";
 
 /**
  * @title Chainlink Price Oracle
- * @author MetaStreet Foundation
+ * @author USD.AI Foundation
  */
 contract ChainlinkPriceOracle is IPriceOracle, AccessControl {
     using EnumerableSet for EnumerableSet.AddressSet;

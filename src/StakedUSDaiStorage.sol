@@ -9,7 +9,7 @@ import "./interfaces/IPriceOracle.sol";
 
 /**
  * @title Staked USDai Storage
- * @author MetaStreet Foundation
+ * @author USD.AI Foundation
  */
 abstract contract StakedUSDaiStorage {
     using EnumerableSet for EnumerableSet.UintSet;

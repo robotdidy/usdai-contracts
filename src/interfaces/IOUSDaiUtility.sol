@@ -5,7 +5,7 @@ import {IUSDaiQueuedDepositor} from "./IUSDaiQueuedDepositor.sol";
 
 /**
  * @title OUSDai Utility Interface
- * @author MetaStreet Foundation
+ * @author USD.AI Foundation
  */
 interface IOUSDaiUtility {
     /*------------------------------------------------------------------------*/

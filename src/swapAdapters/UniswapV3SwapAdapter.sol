@@ -12,7 +12,7 @@ import {ISwapAdapter} from "../interfaces/ISwapAdapter.sol";
 
 /**
  * @title Uniswap V3 Swap Adapter
- * @author MetaStreet Foundation
+ * @author USD.AI Foundation
  */
 contract UniswapV3SwapAdapter is ISwapAdapter, AccessControl {
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -33,7 +33,7 @@ contract UniswapV3SwapAdapter is ISwapAdapter, AccessControl {
     string public constant IMPLEMENTATION_NAME = "Uniswap V3 Swap Adapter";
 
     /**
-     * @notice USD.ai role for access control
+     * @notice USDai role for access control
      */
     bytes32 internal constant USDAI_ROLE = keccak256("USDAI_ROLE");
 

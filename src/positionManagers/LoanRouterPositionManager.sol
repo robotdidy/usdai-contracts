@@ -25,7 +25,7 @@ import {LoanRouterPositionManagerLogic} from "./LoanRouterPositionManagerLogic.s
 
 /**
  * @title Loan Router Position Manager
- * @author MetaStreet Foundation
+ * @author USD.AI Foundation
  */
 abstract contract LoanRouterPositionManager is
     AccessControlUpgradeable,

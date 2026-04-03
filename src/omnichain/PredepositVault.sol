@@ -11,7 +11,7 @@ import "../interfaces/IPredepositVault.sol";
 
 /**
  * @title Predeposit Vault
- * @author MetaStreet Foundation
+ * @author USD.AI Foundation
  */
 contract PredepositVault is ReentrancyGuardUpgradeable, AccessControlUpgradeable, IPredepositVault {
     using SafeERC20 for IERC20;

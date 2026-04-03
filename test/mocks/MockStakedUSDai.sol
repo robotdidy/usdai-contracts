@@ -26,7 +26,7 @@ import {IMintableBurnable} from "src/interfaces/IMintableBurnable.sol";
 
 /**
  * @title Mock Staked USDai ERC20
- * @author MetaStreet Foundation
+ * @author USD.AI Foundation
  */
 contract MockStakedUSDai is
     ERC165Upgradeable,
@@ -65,7 +65,7 @@ contract MockStakedUSDai is
     /*------------------------------------------------------------------------*/
 
     /**
-     * @notice sUSD.ai Constructor
+     * @notice MockStakedUSDai Constructor
      */
     constructor(
         address usdai_,
@@ -87,8 +87,8 @@ contract MockStakedUSDai is
      */
     function initialize() external initializer {
         __ERC165_init();
-        __ERC20_init("Staked USD.ai", "sUSDai");
-        __ERC20Permit_init("Staked USD.ai");
+        __ERC20_init("Staked USDai", "sUSDai");
+        __ERC20Permit_init("Staked USDai");
         __Multicall_init();
         __ReentrancyGuard_init();
         __AccessControl_init();

@@ -11,7 +11,7 @@ import "../interfaces/IMintableBurnable.sol";
 
 /**
  * @title Omnichain Token
- * @author MetaStreet Foundation
+ * @author USD.AI Foundation
  */
 contract OToken is
     IMintableBurnable,

@@ -13,7 +13,7 @@ import "../interfaces/IBasePositionManager.sol";
 
 /**
  * @title Base Position Manager
- * @author MetaStreet Foundation
+ * @author USD.AI Foundation
  */
 abstract contract BasePositionManager is
     AccessControlUpgradeable,

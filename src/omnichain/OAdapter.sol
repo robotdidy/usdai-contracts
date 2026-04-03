@@ -11,7 +11,7 @@ import "../interfaces/IMintableBurnable.sol";
 
 /**
  * @title Omnichain Adapter
- * @author MetaStreet Foundation
+ * @author USD.AI Foundation
  */
 contract OAdapter is OFTCore, RateLimiter {
     /*------------------------------------------------------------------------*/

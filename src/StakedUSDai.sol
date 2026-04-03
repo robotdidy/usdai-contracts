@@ -30,7 +30,7 @@ import "./interfaces/IMintableBurnable.sol";
 
 /**
  * @title Staked USDai ERC20
- * @author MetaStreet Foundation
+ * @author USD.AI Foundation
  */
 contract StakedUSDai is
     ERC165Upgradeable,

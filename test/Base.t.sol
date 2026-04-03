@@ -31,7 +31,7 @@ import {TestPYUSDPriceFeed} from "../script/DeployTestPYUSDPriceFeed.s.sol";
 /**
  * @title Base test setup
  *
- * @author MetaStreet Foundation
+ * @author USD.AI Foundation
  * @author Modified from https://github.com/PaulRBerg/prb-proxy/blob/main/test/Base.t.sol
  *
  * @dev Sets up users and token contracts

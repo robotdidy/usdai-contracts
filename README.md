@@ -29,4 +29,4 @@ $ git submodule update --init --recursive
 
 ## License
 
-MetaStreet USDai Contracts are primarily BUSL-1.1 [licensed](LICENSE). Interfaces are MIT licensed.
+USDai Contracts are primarily BUSL-1.1 [licensed](LICENSE). Interfaces are MIT licensed.
