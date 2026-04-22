@@ -263,6 +263,20 @@ interface IUSDai is IERC20 {
     function setBlacklist(address account, bool isBlacklisted) external;
 
     /*------------------------------------------------------------------------*/
+    /* Pause Admin API */
+    /*------------------------------------------------------------------------*/
+
+    /**
+     * @notice Pause the contract
+     */
+    function pause() external;
+
+    /**
+     * @notice Unpause the contract
+     */
+    function unpause() external;
+
+    /*------------------------------------------------------------------------*/
     /* Permissioned API */
     /*------------------------------------------------------------------------*/
 

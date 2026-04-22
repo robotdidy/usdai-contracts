@@ -12,6 +12,7 @@ import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol
 import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/MulticallUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 
 import "./interfaces/IUSDai.sol";
 import "./interfaces/ISwapAdapter.sol";
@@ -31,6 +32,7 @@ contract USDai is
     ERC20Upgradeable,
     ERC20PermitUpgradeable,
     MulticallUpgradeable,
+    PausableUpgradeable,
     ReentrancyGuardUpgradeable,
     AccessControlUpgradeable
 {
@@ -54,6 +56,11 @@ contract USDai is
      * @notice Blacklist admin role
      */
     bytes32 internal constant BLACKLIST_ADMIN_ROLE = keccak256("BLACKLIST_ADMIN_ROLE");
+
+    /**
+     * @notice Pause admin role
+     */
+    bytes32 internal constant PAUSE_ADMIN_ROLE = keccak256("PAUSE_ADMIN_ROLE");
 
     /**
      * @notice Supply storage location
@@ -480,7 +487,7 @@ contract USDai is
         uint256 depositAmount,
         uint256 usdaiAmountMinimum,
         address recipient
-    ) external nonReentrant returns (uint256) {
+    ) external nonReentrant whenNotPaused returns (uint256) {
         return _deposit(depositToken, depositAmount, usdaiAmountMinimum, recipient, msg.data[0:0]);
     }
 
@@ -493,7 +500,7 @@ contract USDai is
         uint256 usdaiAmountMinimum,
         address recipient,
         bytes calldata data
-    ) external nonReentrant returns (uint256) {
+    ) external nonReentrant whenNotPaused returns (uint256) {
         return _deposit(depositToken, depositAmount, usdaiAmountMinimum, recipient, data);
     }
 
@@ -505,7 +512,7 @@ contract USDai is
         uint256 usdaiAmount,
         uint256 withdrawAmountMinimum,
         address recipient
-    ) external nonReentrant returns (uint256) {
+    ) external nonReentrant whenNotPaused returns (uint256) {
         return _withdraw(withdrawToken, usdaiAmount, withdrawAmountMinimum, recipient, msg.data[0:0]);
     }
 
@@ -518,7 +525,7 @@ contract USDai is
         uint256 withdrawAmountMinimum,
         address recipient,
         bytes calldata data
-    ) external nonReentrant returns (uint256) {
+    ) external nonReentrant whenNotPaused returns (uint256) {
         return _withdraw(withdrawToken, usdaiAmount, withdrawAmountMinimum, recipient, data);
     }
 
@@ -529,7 +536,7 @@ contract USDai is
     /**
      * @inheritdoc IMintableBurnable
      */
-    function mint(address to, uint256 amount) external onlyRole(BRIDGE_ADMIN_ROLE) {
+    function mint(address to, uint256 amount) external whenNotPaused onlyRole(BRIDGE_ADMIN_ROLE) {
         _mint(to, amount);
 
         /* Update bridged supply */
@@ -539,7 +546,7 @@ contract USDai is
     /**
      * @inheritdoc IMintableBurnable
      */
-    function burn(address from, uint256 amount) external onlyRole(BRIDGE_ADMIN_ROLE) {
+    function burn(address from, uint256 amount) external whenNotPaused onlyRole(BRIDGE_ADMIN_ROLE) {
         _burn(from, amount);
 
         /* Update bridged supply */
@@ -618,6 +625,20 @@ contract USDai is
 
         /* Emit blacklist updated event */
         emit BlacklistUpdated(account, blacklisted);
+    }
+
+    /**
+     * @inheritdoc IUSDai
+     */
+    function pause() external onlyRole(PAUSE_ADMIN_ROLE) {
+        _pause();
+    }
+
+    /**
+     * @inheritdoc IUSDai
+     */
+    function unpause() external onlyRole(PAUSE_ADMIN_ROLE) {
+        _unpause();
     }
 
     /*------------------------------------------------------------------------*/

@@ -11,6 +11,7 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/ut
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {MulticallUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/MulticallUpgradeable.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 
 import {IUSDai} from "src/interfaces/IUSDai.sol";
 import {IMintableBurnable} from "src/interfaces/IMintableBurnable.sol";
@@ -26,6 +27,7 @@ contract MockUSDai is
     ERC20Upgradeable,
     ERC20PermitUpgradeable,
     MulticallUpgradeable,
+    PausableUpgradeable,
     ReentrancyGuardUpgradeable,
     AccessControlUpgradeable
 {
@@ -423,6 +425,24 @@ contract MockUSDai is
         _getBlacklistStorage().blacklist[account] = isBlacklisted;
 
         emit BlacklistUpdated(account, isBlacklisted);
+    }
+
+    /*------------------------------------------------------------------------*/
+    /* Pause Admin API */
+    /*------------------------------------------------------------------------*/
+
+    /**
+     * @inheritdoc IUSDai
+     */
+    function pause() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _pause();
+    }
+
+    /**
+     * @inheritdoc IUSDai
+     */
+    function unpause() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _unpause();
     }
 
     /*------------------------------------------------------------------------*/
