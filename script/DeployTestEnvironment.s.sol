@@ -31,7 +31,9 @@ contract DeployTestEnvironment is Deployer {
         console.log("ChainlinkPriceOracle", address(priceOracle));
 
         // Deploy USDai implemetation
-        USDai USDaiImpl = new USDai(address(swapAdapter), _deployment.baseYieldEscrow, _deployment.stakedUSDai);
+        USDai USDaiImpl = new USDai(
+            address(swapAdapter), _deployment.baseYieldEscrow, _deployment.stakedUSDai, _deployment.oAdapterUSDai
+        );
         console.log("USDai implementation", address(USDaiImpl));
 
         // Deploy USDai proxy

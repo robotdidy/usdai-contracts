@@ -48,11 +48,6 @@ contract USDai is
     string public constant IMPLEMENTATION_VERSION = "1.4";
 
     /**
-     * @notice Bridge admin role
-     */
-    bytes32 internal constant BRIDGE_ADMIN_ROLE = keccak256("BRIDGE_ADMIN_ROLE");
-
-    /**
      * @notice Blacklist admin role
      */
     bytes32 internal constant BLACKLIST_ADMIN_ROLE = keccak256("BLACKLIST_ADMIN_ROLE");
@@ -117,6 +112,11 @@ contract USDai is
      */
     address internal immutable _baseYieldRecipient;
 
+    /**
+     * @notice Bridge adapter contract
+     */
+    address internal immutable _bridgeAdapter;
+
     /*------------------------------------------------------------------------*/
     /* Structures */
     /*------------------------------------------------------------------------*/
@@ -153,8 +153,9 @@ contract USDai is
      * @param swapAdapter_ Swap Adapter
      * @param baseYieldEscrow_ Base token yield escrow
      * @param baseYieldRecipient_ Base yield recipient
+     * @param bridgeAdapter_ Bridge adapter contract
      */
-    constructor(address swapAdapter_, address baseYieldEscrow_, address baseYieldRecipient_) {
+    constructor(address swapAdapter_, address baseYieldEscrow_, address baseYieldRecipient_, address bridgeAdapter_) {
         _disableInitializers();
 
         _swapAdapter = ISwapAdapter(swapAdapter_);
@@ -162,6 +163,7 @@ contract USDai is
         _scaleFactor = 10 ** (18 - IERC20Metadata(_swapAdapter.baseToken()).decimals());
         _baseYieldEscrow = IBaseYieldEscrow(baseYieldEscrow_);
         _baseYieldRecipient = baseYieldRecipient_;
+        _bridgeAdapter = bridgeAdapter_;
     }
 
     /*------------------------------------------------------------------------*/
@@ -221,6 +223,14 @@ contract USDai is
         if (isBlacklisted(value)) {
             revert BlacklistedAddress(value);
         }
+        _;
+    }
+
+    /**
+     * @notice Only bridge adapter modifier
+     */
+    modifier onlyBridgeAdapter() {
+        if (msg.sender != _bridgeAdapter) revert InvalidAddress();
         _;
     }
 
@@ -563,7 +573,7 @@ contract USDai is
     /**
      * @inheritdoc IMintableBurnable
      */
-    function mint(address to, uint256 amount) external whenNotPaused onlyRole(BRIDGE_ADMIN_ROLE) {
+    function mint(address to, uint256 amount) external whenNotPaused onlyBridgeAdapter {
         _mint(to, amount);
 
         /* Update bridged supply */
@@ -573,7 +583,7 @@ contract USDai is
     /**
      * @inheritdoc IMintableBurnable
      */
-    function burn(address from, uint256 amount) external whenNotPaused onlyRole(BRIDGE_ADMIN_ROLE) {
+    function burn(address from, uint256 amount) external whenNotPaused onlyBridgeAdapter {
         _burn(from, amount);
 
         /* Update bridged supply */

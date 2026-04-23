@@ -52,8 +52,9 @@ contract USDaiServiceQueuedDepositWithKyberTest is BaseTest {
 
         vm.startPrank(0x783B08aA21DE056717173f72E04Be0E91328A07b);
 
-        USDai usdaiImpl =
-            new USDai(swapAdapter, address(new BaseYieldEscrow(address(usdai), address(PYUSD))), address(stakedUsdai));
+        USDai usdaiImpl = new USDai(
+            swapAdapter, address(new BaseYieldEscrow(address(usdai), address(PYUSD))), address(stakedUsdai), address(0)
+        );
         vm.etch(address(usdai), address(usdaiImpl).code);
 
         // Deploy USDai implemetation

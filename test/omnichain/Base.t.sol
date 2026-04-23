@@ -96,7 +96,7 @@ abstract contract OmnichainBaseTest is TestHelperOz5 {
         TestHelperOz5.setUp();
 
         // Deploy mock USDai
-        IUSDai usdaiImpl = new MockUSDai();
+        IUSDai usdaiImpl = new MockUSDai(address(0));
 
         /* Deploy usdai proxy */
         TransparentUpgradeableProxy usdaiProxy =
@@ -240,6 +240,18 @@ abstract contract OmnichainBaseTest is TestHelperOz5 {
         stakedUsdaiHomeOAdapter.setRateLimits(rateLimitConfigsStakedUsdaiHome);
         stakedUsdaiAwayOAdapter.setRateLimits(rateLimitConfigsStakedUsdaiAway);
 
+        /* Deploy usdai implementation */
+        usdaiImpl = new MockUSDai(address(usdaiHomeOAdapter));
+
+        /* Lookup proxy admin from EIP-1967 storage slot */
+        address proxyAdmin = address(uint160(uint256(vm.load(address(usdai), ERC1967Utils.ADMIN_SLOT))));
+
+        ProxyAdmin(proxyAdmin).upgradeAndCall(
+            ITransparentUpgradeableProxy(address(usdai)),
+            address(usdaiImpl),
+            "" // No additional initialization data
+        );
+
         // Deploy receipt tokens
         ReceiptToken receiptTokenImpl = new ReceiptToken();
 
@@ -319,8 +331,7 @@ abstract contract OmnichainBaseTest is TestHelperOz5 {
             address(receiptTokenImpl),
             address(oUsdaiUtility)
         );
-        address proxyAdmin =
-            address(uint160(uint256(vm.load(address(usdaiQueuedDepositorProxy), ERC1967Utils.ADMIN_SLOT))));
+        proxyAdmin = address(uint160(uint256(vm.load(address(usdaiQueuedDepositorProxy), ERC1967Utils.ADMIN_SLOT))));
         ProxyAdmin(proxyAdmin).upgradeAndCall(
             ITransparentUpgradeableProxy(address(usdaiQueuedDepositorProxy)),
             address(newImpl),

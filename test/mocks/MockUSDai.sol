@@ -36,11 +36,6 @@ contract MockUSDai is
     /*------------------------------------------------------------------------*/
 
     /**
-     * @notice Minter role
-     */
-    bytes32 internal constant BRIDGE_ADMIN_ROLE = keccak256("BRIDGE_ADMIN_ROLE");
-
-    /**
      * @notice Base yield recipient role
      */
     bytes32 internal constant BASE_YIELD_RECIPIENT_ROLE = keccak256("BASE_YIELD_RECIPIENT_ROLE");
@@ -70,6 +65,15 @@ contract MockUSDai is
      */
     bytes32 private constant BLACKLIST_STORAGE_LOCATION =
         0xd21f45001ca28b8905ef527bd860800b2646ce7faf578b00aa2e89af23551500;
+
+    /*------------------------------------------------------------------------*/
+    /* Immutable State */
+    /*------------------------------------------------------------------------*/
+
+    /**
+     * @notice Bridge adapter contract
+     */
+    address internal immutable _bridgeAdapter;
 
     /*------------------------------------------------------------------------*/
     /* Structures */
@@ -104,8 +108,13 @@ contract MockUSDai is
 
     /**
      * @notice MockUSDai Constructor
+     * @param bridgeAdapter_ Bridge adapter contract
      */
-    constructor() {
+    constructor(
+        address bridgeAdapter_
+    ) {
+        _bridgeAdapter = bridgeAdapter_;
+
         _disableInitializers();
     }
 
@@ -163,6 +172,14 @@ contract MockUSDai is
         if (_getBlacklistStorage().blacklist[value]) {
             revert BlacklistedAddress(value);
         }
+        _;
+    }
+
+    /**
+     * @notice Only bridge adapter modifier
+     */
+    modifier onlyBridgeAdapter() {
+        if (msg.sender != _bridgeAdapter) revert InvalidAddress();
         _;
     }
 
@@ -408,7 +425,7 @@ contract MockUSDai is
     /**
      * @inheritdoc IMintableBurnable
      */
-    function mint(address to, uint256 amount) external onlyRole(BRIDGE_ADMIN_ROLE) {
+    function mint(address to, uint256 amount) external onlyBridgeAdapter {
         _mint(to, amount);
 
         /* Update bridged supply */
@@ -418,7 +435,7 @@ contract MockUSDai is
     /**
      * @inheritdoc IMintableBurnable
      */
-    function burn(address from, uint256 amount) external onlyRole(BRIDGE_ADMIN_ROLE) {
+    function burn(address from, uint256 amount) external onlyBridgeAdapter {
         _burn(from, amount);
 
         /* Update bridged supply */

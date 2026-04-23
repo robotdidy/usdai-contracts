@@ -13,7 +13,7 @@ contract MockUSDaiSlippage is MockUSDai {
 
     constructor(
         uint256 slippageRate_
-    ) {
+    ) MockUSDai(address(0)) {
         _SLIPPAGE_RATE = slippageRate_;
     }
 

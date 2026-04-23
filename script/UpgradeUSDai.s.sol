@@ -14,7 +14,9 @@ contract UpgradeUSDai is Deployer {
         if (_deployment.swapAdapter == address(0)) revert MissingDependency();
 
         // Deploy USDai implemetation
-        USDai USDaiImpl = new USDai(_deployment.swapAdapter, _deployment.baseYieldEscrow, _deployment.stakedUSDai);
+        USDai USDaiImpl = new USDai(
+            _deployment.swapAdapter, _deployment.baseYieldEscrow, _deployment.stakedUSDai, _deployment.oAdapterUSDai
+        );
         console.log("USDai implementation", address(USDaiImpl));
 
         /* Lookup proxy admin */

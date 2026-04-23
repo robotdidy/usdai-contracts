@@ -293,7 +293,8 @@ abstract contract BaseTest is Test {
         vm.startPrank(users.deployer);
 
         /* Deploy usdai implementation */
-        IUSDai usdaiImpl = new USDai(address(uniswapV3SwapAdapter), address(baseYieldEscrow), address(stakedUsdai));
+        IUSDai usdaiImpl =
+            new USDai(address(uniswapV3SwapAdapter), address(baseYieldEscrow), address(stakedUsdai), address(0));
 
         /* Deploy usdai proxy */
         TransparentUpgradeableProxy usdaiProxy = new TransparentUpgradeableProxy(
@@ -332,7 +333,8 @@ abstract contract BaseTest is Test {
 
     function upgradeUsdai() internal {
         /* Deploy usdai implementation */
-        IUSDai usdaiImpl = new USDai(address(uniswapV3SwapAdapter), address(baseYieldEscrow), address(stakedUsdai));
+        IUSDai usdaiImpl =
+            new USDai(address(uniswapV3SwapAdapter), address(baseYieldEscrow), address(stakedUsdai), address(0));
 
         /* Lookup proxy admin from EIP-1967 storage slot */
         address proxyAdmin = address(uint160(uint256(vm.load(address(usdai), ERC1967Utils.ADMIN_SLOT))));
