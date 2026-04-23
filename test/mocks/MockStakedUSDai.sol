@@ -69,9 +69,10 @@ contract MockStakedUSDai is
      */
     constructor(
         address usdai_,
-        address loanRouter_
+        address loanRouter_,
+        address bridgeAdapter_
     )
-        StakedUSDaiStorage(usdai_, address(0), address(0), uint64(block.timestamp))
+        StakedUSDaiStorage(usdai_, address(0), address(0), uint64(block.timestamp), bridgeAdapter_)
         BasePositionManager(0)
         LoanRouterPositionManager(loanRouter_, 0)
     {
@@ -133,6 +134,14 @@ contract MockStakedUSDai is
         if (_usdai.isBlacklisted(value)) {
             revert BlacklistedAddress(value);
         }
+        _;
+    }
+
+    /**
+     * @notice Only bridge adapter modifier
+     */
+    modifier onlyBridgeAdapter() {
+        if (msg.sender != _bridgeAdapter) revert InvalidAddress();
         _;
     }
 
@@ -728,7 +737,7 @@ contract MockStakedUSDai is
     /**
      * @inheritdoc IMintableBurnable
      */
-    function mint(address to, uint256 amount) external onlyRole(BRIDGE_ADMIN_ROLE) {
+    function mint(address to, uint256 amount) external onlyBridgeAdapter {
         /* Mint supply */
         _mint(to, amount);
 
@@ -739,7 +748,7 @@ contract MockStakedUSDai is
     /**
      * @inheritdoc IMintableBurnable
      */
-    function burn(address from, uint256 amount) external onlyRole(BRIDGE_ADMIN_ROLE) {
+    function burn(address from, uint256 amount) external onlyBridgeAdapter {
         /* Burn supply */
         _burn(from, amount);
 

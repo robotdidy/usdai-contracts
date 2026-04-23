@@ -102,6 +102,7 @@ abstract contract BaseTest is Test {
         address payable manager;
         address payable feeRecipient;
         address payable borrower;
+        address payable mockOAdapter;
     }
 
     Users internal users;
@@ -129,7 +130,8 @@ abstract contract BaseTest is Test {
             admin: createUser("admin"),
             manager: createUser("manager"),
             feeRecipient: createUser("feeRecipient"),
-            borrower: createUser("borrower")
+            borrower: createUser("borrower"),
+            mockOAdapter: createUser("mockOAdapter")
         });
 
         /* Fund users */
@@ -294,7 +296,7 @@ abstract contract BaseTest is Test {
 
         /* Deploy usdai implementation */
         IUSDai usdaiImpl =
-            new USDai(address(uniswapV3SwapAdapter), address(baseYieldEscrow), address(stakedUsdai), address(0));
+            new USDai(address(uniswapV3SwapAdapter), address(baseYieldEscrow), address(stakedUsdai), users.mockOAdapter);
 
         /* Deploy usdai proxy */
         TransparentUpgradeableProxy usdaiProxy = new TransparentUpgradeableProxy(
@@ -334,7 +336,7 @@ abstract contract BaseTest is Test {
     function upgradeUsdai() internal {
         /* Deploy usdai implementation */
         IUSDai usdaiImpl =
-            new USDai(address(uniswapV3SwapAdapter), address(baseYieldEscrow), address(stakedUsdai), address(0));
+            new USDai(address(uniswapV3SwapAdapter), address(baseYieldEscrow), address(stakedUsdai), users.mockOAdapter);
 
         /* Lookup proxy admin from EIP-1967 storage slot */
         address proxyAdmin = address(uint160(uint256(vm.load(address(usdai), ERC1967Utils.ADMIN_SLOT))));
@@ -377,7 +379,8 @@ abstract contract BaseTest is Test {
             address(users.admin),
             uint64(block.timestamp),
             100,
-            100
+            100,
+            users.mockOAdapter
         );
 
         /* Deploy staked usdai proxy */

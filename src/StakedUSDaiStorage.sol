@@ -28,11 +28,6 @@ abstract contract StakedUSDaiStorage {
      */
     bytes32 internal constant STRATEGY_ADMIN_ROLE = keccak256("STRATEGY_ADMIN_ROLE");
 
-    /**
-     * @notice Bridge admin role
-     */
-    bytes32 internal constant BRIDGE_ADMIN_ROLE = keccak256("BRIDGE_ADMIN_ROLE");
-
     /*------------------------------------------------------------------------*/
     /* Constants */
     /*------------------------------------------------------------------------*/
@@ -134,6 +129,11 @@ abstract contract StakedUSDaiStorage {
      */
     uint64 internal immutable _genesisTimestamp;
 
+    /**
+     * @notice Bridge adapter contract
+     */
+    address internal immutable _bridgeAdapter;
+
     /*------------------------------------------------------------------------*/
     /* Constructor */
     /*------------------------------------------------------------------------*/
@@ -144,12 +144,20 @@ abstract contract StakedUSDaiStorage {
      * @param priceOracle Price oracle
      * @param adminFeeRecipient Admin fee recipient
      * @param genesisTimestamp Genesis timestamp
+     * @param bridgeAdapter Bridge adapter contract
      */
-    constructor(address usdai, address priceOracle, address adminFeeRecipient, uint64 genesisTimestamp) {
+    constructor(
+        address usdai,
+        address priceOracle,
+        address adminFeeRecipient,
+        uint64 genesisTimestamp,
+        address bridgeAdapter
+    ) {
         _usdai = IUSDai(usdai);
         _priceOracle = IPriceOracle(priceOracle);
         _adminFeeRecipient = adminFeeRecipient;
         _genesisTimestamp = genesisTimestamp;
+        _bridgeAdapter = bridgeAdapter;
     }
 
     /*------------------------------------------------------------------------*/

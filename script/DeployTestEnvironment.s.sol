@@ -44,7 +44,14 @@ contract DeployTestEnvironment is Deployer {
 
         // Deploy StakedUSDai
         StakedUSDai stakedUSDaiImpl = new StakedUSDai(
-            address(USDai_), address(priceOracle), loanRouter, msg.sender, uint64(block.timestamp), 100, 100
+            address(USDai_),
+            address(priceOracle),
+            loanRouter,
+            msg.sender,
+            uint64(block.timestamp),
+            100,
+            100,
+            _deployment.oAdapterStakedUSDai
         );
         console.log("StakedUSDai implementation", address(stakedUSDaiImpl));
 

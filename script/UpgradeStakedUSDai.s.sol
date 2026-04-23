@@ -24,7 +24,8 @@ contract UpgradeStakedUSDai is Deployer {
             adminFeeRecipient,
             _deployment.genesisTimestamp,
             baseYieldAdminFeeRate,
-            loanRouterAdminFeeRate
+            loanRouterAdminFeeRate,
+            _deployment.oAdapterStakedUSDai
         );
         console.log("StakedUSDai implementation", address(stakedUSDaiImpl));
 
@@ -36,7 +37,7 @@ contract UpgradeStakedUSDai is Deployer {
             ProxyAdmin(proxyAdmin).upgradeAndCall(
                 ITransparentUpgradeableProxy(_deployment.stakedUSDai), address(stakedUSDaiImpl), ""
             );
-            console.log("Upgraded proxy %s implementation to: %s\n", _deployment.USDai, address(stakedUSDaiImpl));
+            console.log("Upgraded proxy %s implementation to: %s\n", _deployment.stakedUSDai, address(stakedUSDaiImpl));
         } else {
             console.log("\nUpgrade calldata");
             console.log("Target:   %s", proxyAdmin);

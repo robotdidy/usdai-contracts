@@ -82,6 +82,7 @@ contract StakedUSDai is
      * @param genesisTimestamp_ Genesis timestamp
      * @param baseYieldAdminFeeRate_ Base yield admin fee rate
      * @param loanRouterAdminFeeRate_ Loan router admin fee rate
+     * @param bridgeAdapter_ Bridge adapter contract
      */
     constructor(
         address usdai_,
@@ -90,9 +91,10 @@ contract StakedUSDai is
         address adminFeeRecipient_,
         uint64 genesisTimestamp_,
         uint256 baseYieldAdminFeeRate_,
-        uint256 loanRouterAdminFeeRate_
+        uint256 loanRouterAdminFeeRate_,
+        address bridgeAdapter_
     )
-        StakedUSDaiStorage(usdai_, priceOracle_, adminFeeRecipient_, genesisTimestamp_)
+        StakedUSDaiStorage(usdai_, priceOracle_, adminFeeRecipient_, genesisTimestamp_, bridgeAdapter_)
         BasePositionManager(baseYieldAdminFeeRate_)
         LoanRouterPositionManager(loanRouter_, loanRouterAdminFeeRate_)
     {
@@ -144,6 +146,14 @@ contract StakedUSDai is
         address value
     ) {
         if (value == address(0)) revert InvalidAddress();
+        _;
+    }
+
+    /**
+     * @notice Only bridge adapter modifier
+     */
+    modifier onlyBridgeAdapter() {
+        if (msg.sender != _bridgeAdapter) revert InvalidAddress();
         _;
     }
 
@@ -755,7 +765,7 @@ contract StakedUSDai is
     /**
      * @inheritdoc IMintableBurnable
      */
-    function mint(address to, uint256 amount) external whenNotPaused onlyRole(BRIDGE_ADMIN_ROLE) {
+    function mint(address to, uint256 amount) external whenNotPaused onlyBridgeAdapter {
         /* Mint supply */
         _mint(to, amount);
 
@@ -766,7 +776,7 @@ contract StakedUSDai is
     /**
      * @inheritdoc IMintableBurnable
      */
-    function burn(address from, uint256 amount) external whenNotPaused onlyRole(BRIDGE_ADMIN_ROLE) {
+    function burn(address from, uint256 amount) external whenNotPaused onlyBridgeAdapter {
         /* Burn supply */
         _burn(from, amount);
 

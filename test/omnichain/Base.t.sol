@@ -109,7 +109,7 @@ abstract contract OmnichainBaseTest is TestHelperOz5 {
         MockLoanRouter mockLoanRouter = new MockLoanRouter();
 
         // Deploy mock staked usdai implementation
-        IStakedUSDai stakedUsdaiImpl = new MockStakedUSDai(address(usdai), address(mockLoanRouter));
+        IStakedUSDai stakedUsdaiImpl = new MockStakedUSDai(address(usdai), address(mockLoanRouter), address(0));
 
         /* Deploy staked usdai proxy */
         TransparentUpgradeableProxy stakedUsdaiProxy = new TransparentUpgradeableProxy(
@@ -252,6 +252,30 @@ abstract contract OmnichainBaseTest is TestHelperOz5 {
             "" // No additional initialization data
         );
 
+        /* Deploy staked usdai implementation */
+        stakedUsdaiImpl = new MockStakedUSDai(address(usdai), address(mockLoanRouter), address(stakedUsdaiHomeOAdapter));
+
+        /* Lookup proxy admin from EIP-1967 storage slot */
+        proxyAdmin = address(uint160(uint256(vm.load(address(stakedUsdai), ERC1967Utils.ADMIN_SLOT))));
+
+        ProxyAdmin(proxyAdmin).upgradeAndCall(
+            ITransparentUpgradeableProxy(address(stakedUsdai)),
+            address(stakedUsdaiImpl),
+            "" // No additional initialization data
+        );
+
+        /* Deploy staked usdai implementation */
+        stakedUsdaiImpl = new MockStakedUSDai(address(usdai), address(mockLoanRouter), address(stakedUsdaiHomeOAdapter));
+
+        /* Lookup proxy admin from EIP-1967 storage slot */
+        proxyAdmin = address(uint160(uint256(vm.load(address(stakedUsdai), ERC1967Utils.ADMIN_SLOT))));
+
+        ProxyAdmin(proxyAdmin).upgradeAndCall(
+            ITransparentUpgradeableProxy(address(stakedUsdai)),
+            address(stakedUsdaiImpl),
+            "" // No additional initialization data
+        );
+
         // Deploy receipt tokens
         ReceiptToken receiptTokenImpl = new ReceiptToken();
 
@@ -343,9 +367,7 @@ abstract contract OmnichainBaseTest is TestHelperOz5 {
         AccessControl(address(usdtAwayToken)).grantRole(usdtAwayToken.BRIDGE_ADMIN_ROLE(), address(usdtAwayOAdapter));
 
         // Grant bridge admin roles for USDAI and staked USDAI
-        AccessControl(address(usdai)).grantRole(keccak256("BRIDGE_ADMIN_ROLE"), address(usdaiHomeOAdapter));
         AccessControl(address(usdaiAwayToken)).grantRole(keccak256("BRIDGE_ADMIN_ROLE"), address(usdaiAwayOAdapter));
-        AccessControl(address(stakedUsdai)).grantRole(keccak256("BRIDGE_ADMIN_ROLE"), address(stakedUsdaiHomeOAdapter));
         AccessControl(address(stakedUsdaiAwayToken)).grantRole(
             keccak256("BRIDGE_ADMIN_ROLE"), address(stakedUsdaiAwayOAdapter)
         );
