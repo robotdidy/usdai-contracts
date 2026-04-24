@@ -118,6 +118,33 @@ contract USDai is
     address internal immutable _baseYieldRecipient;
 
     /*------------------------------------------------------------------------*/
+    /* Structures */
+    /*------------------------------------------------------------------------*/
+
+    /**
+     * @custom:storage-location erc7201:USDai.supply
+     */
+    struct Supply {
+        uint256 bridged;
+    }
+
+    /**
+     * @custom:storage-location erc7201:USDai.baseYieldAccrual
+     */
+    struct BaseYieldAccrual {
+        RateTier[] rateTiers;
+        uint256 accrued;
+        uint64 timestamp;
+    }
+
+    /**
+     * @custom:storage-location erc7201:USDai.blacklist
+     */
+    struct Blacklist {
+        mapping(address => bool) blacklist;
+    }
+
+    /*------------------------------------------------------------------------*/
     /* Constructor */
     /*------------------------------------------------------------------------*/
 

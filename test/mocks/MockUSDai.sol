@@ -72,6 +72,33 @@ contract MockUSDai is
         0xd21f45001ca28b8905ef527bd860800b2646ce7faf578b00aa2e89af23551500;
 
     /*------------------------------------------------------------------------*/
+    /* Structures */
+    /*------------------------------------------------------------------------*/
+
+    /**
+     * @custom:storage-location erc7201:USDai.supply
+     */
+    struct Supply {
+        uint256 bridged;
+    }
+
+    /**
+     * @custom:storage-location erc7201:USDai.baseYieldAccrual
+     */
+    struct BaseYieldAccrual {
+        RateTier[] rateTiers;
+        uint256 accrued;
+        uint64 timestamp;
+    }
+
+    /**
+     * @custom:storage-location erc7201:USDai.blacklist
+     */
+    struct Blacklist {
+        mapping(address => bool) blacklist;
+    }
+
+    /*------------------------------------------------------------------------*/
     /* Constructor */
     /*------------------------------------------------------------------------*/
 

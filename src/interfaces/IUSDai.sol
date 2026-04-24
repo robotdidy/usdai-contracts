@@ -50,29 +50,6 @@ interface IUSDai is IERC20 {
         uint256 threshold;
     }
 
-    /**
-     * @custom:storage-location erc7201:USDai.supply
-     */
-    struct Supply {
-        uint256 bridged;
-    }
-
-    /**
-     * @custom:storage-location erc7201:USDai.baseYieldAccrual
-     */
-    struct BaseYieldAccrual {
-        RateTier[] rateTiers;
-        uint256 accrued;
-        uint64 timestamp;
-    }
-
-    /**
-     * @custom:storage-location erc7201:USDai.blacklist
-     */
-    struct Blacklist {
-        mapping(address => bool) blacklist;
-    }
-
     /*------------------------------------------------------------------------*/
     /* Events */
     /*------------------------------------------------------------------------*/
